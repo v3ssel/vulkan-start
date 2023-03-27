@@ -23,6 +23,8 @@ namespace mvk {
          void MainLoop();
          void CleanUp();
 
+         void CreateSurface();
+
          GLFWwindow* window_;
          mvk::VulkanManager VulkanWrapped;
     };

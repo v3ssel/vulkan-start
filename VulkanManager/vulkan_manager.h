@@ -8,16 +8,23 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <set>
+
+#include "vulkan_validator.h"
 
 namespace mvk {
     #ifdef NDEBUG
-        constexpr bool enableValidationLayers = false;
+        constexpr bool ENABLE_VALIDATION_LAYERS = false;
     #else
-        constexpr bool enableValidationLayers = true;
+        constexpr bool ENABLE_VALIDATION_LAYERS = true;
     #endif
 
-    const std::vector<const char*> validationLayers = {
+    const std::vector<const char*> VALIDATION_LAYERS = {
         "VK_LAYER_KHRONOS_validation",
+    };
+
+    const std::vector<const char*> DEVICE_REQUIRED_EXTENSIONS = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
     class VulkanManager {
@@ -30,20 +37,17 @@ namespace mvk {
         
          vk::Instance instance_;
          vk::DebugUtilsMessengerEXT debug_messenger_;
+         vk::SurfaceKHR surface_;
          vk::PhysicalDevice physical_device_ = VK_NULL_HANDLE;
          vk::Device logical_device_;
          vk::Queue graphics_queue_;
+         vk::Queue present_queue_;
+         
+         VulkanValidator validator_;
         private:
          void PrintLoadedData();
-         void CheckRequestedExtensions(std::vector<const char*> requiement_extensions);
-         bool CheckValidationLayersSupport();
-         bool CheckVideocard(vk::PhysicalDevice device);
 
          void FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info);
-
-
-         std::vector<const char*> GetRequirmentExtension();
-
     };
 }
 

@@ -22,7 +22,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
 
 namespace mvk {
     void VulkanManager::CreateInstance() {
-        if (enableValidationLayers && !CheckValidationLayersSupport())
+        if (ENABLE_VALIDATION_LAYERS && !validator_.CheckValidationLayersSupport(VALIDATION_LAYERS))
             throw std::runtime_error("Requested validation layers unavailable.");
 
         vk::ApplicationInfo app_info;
@@ -37,15 +37,15 @@ namespace mvk {
         create_info.sType = vk::StructureType::eInstanceCreateInfo;
         create_info.setPApplicationInfo(&app_info);
 
-        auto requirment_extensions = GetRequirmentExtension();
-        this->CheckRequestedExtensions(requirment_extensions);
+        auto requirment_extensions = validator_.GetRequirmentInstanceExtension(ENABLE_VALIDATION_LAYERS);
+        validator_.CheckRequestedExtensions(requirment_extensions);
         create_info.setEnabledExtensionCount(requirment_extensions.size());
         create_info.setPpEnabledExtensionNames(requirment_extensions.data());
 
         vk::DebugUtilsMessengerCreateInfoEXT debug_info{};
-        if (enableValidationLayers) {
-            create_info.setEnabledLayerCount(static_cast<uint32_t>(validationLayers.size()));
-            create_info.setPpEnabledLayerNames(validationLayers.data());
+        if (ENABLE_VALIDATION_LAYERS) {
+            create_info.setEnabledLayerCount(static_cast<uint32_t>(VALIDATION_LAYERS.size()));
+            create_info.setPpEnabledLayerNames(VALIDATION_LAYERS.data());
 
             FillDebugInfo(debug_info);
             create_info.setPNext((vk::DebugUtilsMessengerCreateInfoEXT *)&debug_info);
@@ -62,7 +62,7 @@ namespace mvk {
     }
 
     void VulkanManager::SetupDebug() {
-        if (!enableValidationLayers) return;
+        if (!ENABLE_VALIDATION_LAYERS) return;
 
         vk::DebugUtilsMessengerCreateInfoEXT debug_info;
         FillDebugInfo(debug_info);
@@ -76,7 +76,7 @@ namespace mvk {
         if (devices.size() == 0) throw std::runtime_error("Supported GPU not found.");
 
         for (auto &device : devices) {
-            if (CheckVideocard(device)) {
+            if (validator_.CheckVideocard(device, surface_, DEVICE_REQUIRED_EXTENSIONS)) {
                 physical_device_ = device;
                 break;
             }
@@ -87,71 +87,34 @@ namespace mvk {
     }
 
     void VulkanManager::CreateLogicalDevice() {
-        QueueFamilyIndices indices = QueueFamilyIndices::FindQueueFamily(physical_device_);
-        vk::DeviceQueueCreateInfo logical_device_queue_info{};
-        logical_device_queue_info.sType = vk::StructureType::eDeviceQueueCreateInfo;
-        logical_device_queue_info.setQueueFamilyIndex(indices.family_.value());
-        logical_device_queue_info.setQueueCount(1);
+        QueueFamilyIndices indices = QueueFamilyIndices::FindQueueFamily(physical_device_, surface_);
+
+        std::vector<vk::DeviceQueueCreateInfo> device_queue_infos{};
+        std::set<uint32_t> unique_families = {indices.graphics_family_.value(), indices.present_family_.value()};
+
         float q = 1.0f;
-        logical_device_queue_info.setQueuePriorities(q);
+        for (auto &queue_family : unique_families) {
+            vk::DeviceQueueCreateInfo logical_device_queue_info{};
+            logical_device_queue_info.sType = vk::StructureType::eDeviceQueueCreateInfo;
+            logical_device_queue_info.setQueueFamilyIndex(indices.graphics_family_.value());
+            logical_device_queue_info.setQueueCount(1);
+            logical_device_queue_info.setQueuePriorities(q);
+            device_queue_infos.push_back(logical_device_queue_info);
+        }
 
         vk::DeviceCreateInfo logical_device_info{};
         logical_device_info.sType = vk::StructureType::eDeviceCreateInfo;
-        logical_device_info.setPQueueCreateInfos(&logical_device_queue_info);
-        logical_device_info.setQueueCreateInfoCount(1);
+        logical_device_info.setQueueCreateInfoCount(device_queue_infos.size());
+        logical_device_info.setPQueueCreateInfos(device_queue_infos.data());
+        logical_device_info.setEnabledExtensionCount(static_cast<uint32_t>(DEVICE_REQUIRED_EXTENSIONS.size()));
+        logical_device_info.setPpEnabledExtensionNames(DEVICE_REQUIRED_EXTENSIONS.data());
 
         vk::PhysicalDeviceFeatures features{};
         logical_device_info.setPEnabledFeatures(&features);
 
         logical_device_ = physical_device_.createDevice(logical_device_info);
-        graphics_queue_ = logical_device_.getQueue(indices.family_.value(), 0);
-    }
-    
-    void VulkanManager::CheckRequestedExtensions(std::vector<const char *> requiement_extensions) {
-        auto extensions = vk::enumerateInstanceExtensionProperties();
-        uint32_t match_count = 0;
-
-        for (size_t i = 0; i < requiement_extensions.size(); ++i) {
-            for (size_t j = 0; j < extensions.size(); ++j) {
-                if (!strcmp(extensions[j].extensionName, requiement_extensions[i])) {
-                    match_count++;
-                }
-            }
-        }
-        
-        if (match_count != requiement_extensions.size())
-            throw std::runtime_error("Cannot find GLFWExtensions in InstanceExtentions.");
-    }
-
-    bool VulkanManager::CheckValidationLayersSupport() {
-        auto layers = vk::enumerateInstanceLayerProperties();
-
-        for (auto &requested_layer : validationLayers) {
-            bool layer_found = false;
-            for (auto &layer : layers) {
-                if (!strcmp(requested_layer, layer.layerName)) {
-                    layer_found = true;
-                    break;
-                }
-            }
-
-            if (!layer_found)
-                return false;
-        }
-
-        return true;
-    }
-
-    std::vector<const char*> VulkanManager::GetRequirmentExtension() {
-        uint32_t glfwExtensionCount;
-        const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-
-        if (enableValidationLayers)
-            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-
-        return extensions;
+        graphics_queue_ = logical_device_.getQueue(indices.graphics_family_.value(), 0);
+        present_queue_ = logical_device_.getQueue(indices.present_family_.value(), 0);
     }
  
     void VulkanManager::FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT& debug_info) {
@@ -171,11 +134,6 @@ namespace mvk {
 
         debug_info.setPfnUserCallback(DebugCallback);
         debug_info.setPUserData(nullptr);
-    }
-
-    bool VulkanManager::CheckVideocard(vk::PhysicalDevice device) {
-        QueueFamilyIndices family = QueueFamilyIndices::FindQueueFamily(device);
-        return family.IsComplete();
     }
 
     void VulkanManager::PrintLoadedData() {

@@ -1,4 +1,5 @@
 #include "../DisplayWindow/display_window.h"
+#include "display_window.h"
 
 namespace mvk {
     void Triangle::Run() {
@@ -11,8 +12,8 @@ namespace mvk {
     void Triangle::InitWindow() {
         if (glfwInit() == GLFW_FALSE) throw std::runtime_error("Cannot initialize GLFW.");
 
-        // glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         window_ = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan window", nullptr, nullptr);
         if (window_ == GLFW_FALSE) throw std::runtime_error("Cannot create window.");
 
@@ -22,30 +23,40 @@ namespace mvk {
     void Triangle::InitVulkan() {
         VulkanWrapped.CreateInstance();
         VulkanWrapped.SetupDebug();
+        CreateSurface();
         VulkanWrapped.TakeVideocard();
         VulkanWrapped.CreateLogicalDevice();
     }
 
     void Triangle::MainLoop() {
         while(!glfwWindowShouldClose(window_)) {
-            glClear(GL_COLOR_BUFFER_BIT);
+            // glClear(GL_COLOR_BUFFER_BIT);
 
-            srand(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-            glClearColor(((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)));
+            // srand(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+            // glClearColor(((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)));
 
-            glfwSwapBuffers(window_);
+            // glfwSwapBuffers(window_);
             glfwPollEvents();
         }        
     }
 
     void Triangle::CleanUp() {
-        if (enableValidationLayers)
+        if (ENABLE_VALIDATION_LAYERS)
             VulkanWrapped.instance_.destroyDebugUtilsMessengerEXT(VulkanWrapped.debug_messenger_, nullptr, vk::DispatchLoaderDynamic(VulkanWrapped.instance_, vkGetInstanceProcAddr));
         
         VulkanWrapped.logical_device_.destroy();
+        VulkanWrapped.instance_.destroySurfaceKHR(VulkanWrapped.surface_);
         VulkanWrapped.instance_.destroy();
         glfwDestroyWindow(window_);
 
         glfwTerminate();
+    }
+
+    void Triangle::CreateSurface() {
+        VkSurfaceKHR surface;
+
+        if (glfwCreateWindowSurface(VulkanWrapped.instance_, window_, nullptr, &surface) != VK_SUCCESS)
+            throw std::runtime_error("Failed to create window surface.");
+        VulkanWrapped.surface_ = vk::SurfaceKHR(surface);
     }
 }

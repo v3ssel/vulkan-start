@@ -6,7 +6,8 @@ CFLAGS = -Wall \
 
 SOURCES = main.cpp \
 		  VulkanManager/vulkan_manager.cpp \
-		  VulkanManager/queue_families.cpp \
+		  VulkanManager/queue_families.cpp  \
+		  VulkanManager/vulkan_validator.cpp \
 		  DisplayWindow/display_window.cpp
 
 
