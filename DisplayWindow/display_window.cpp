@@ -26,6 +26,8 @@ namespace mvk {
         CreateSurface();
         VulkanWrapped.TakeVideocard();
         VulkanWrapped.CreateLogicalDevice();
+
+        VulkanWrapped.PrintLoadedData();
     }
 
     void Triangle::MainLoop() {

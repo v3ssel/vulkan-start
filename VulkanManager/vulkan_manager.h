@@ -44,9 +44,10 @@ namespace mvk {
          vk::Queue present_queue_;
          
          VulkanValidator validator_;
-        private:
-         void PrintLoadedData();
 
+         void PrintLoadedData();
+         
+        private:
          void FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info);
     };
 }

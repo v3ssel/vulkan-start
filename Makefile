@@ -8,6 +8,7 @@ SOURCES = main.cpp \
 		  VulkanManager/vulkan_manager.cpp \
 		  VulkanManager/queue_families.cpp  \
 		  VulkanManager/vulkan_validator.cpp \
+		  VulkanManager/swapchain.cpp \
 		  DisplayWindow/display_window.cpp
 
 

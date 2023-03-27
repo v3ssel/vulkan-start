@@ -54,8 +54,6 @@ namespace mvk {
             create_info.setPNext(nullptr);
         }
 
-        this->PrintLoadedData();
-
         if (vk::createInstance(&create_info, nullptr, &instance_) != vk::Result::eSuccess) {
             throw std::runtime_error("Cannot create instance.");
         }
@@ -81,8 +79,7 @@ namespace mvk {
                 break;
             }
         }
-
-        if (&physical_device_ == VK_NULL_HANDLE)
+        if (static_cast<VkPhysicalDevice>(physical_device_) == nullptr)
             throw std::runtime_error("Supported GPU not found.");
     }
 
@@ -138,7 +135,7 @@ namespace mvk {
 
     void VulkanManager::PrintLoadedData() {
         auto extensions = vk::enumerateInstanceExtensionProperties();
-        std::cout << "LOADED EXTENSIONS:\n";
+        std::cout << "\u001b[36mLOADED EXTENSIONS:\n";
         for (auto &ext : extensions)
             std::cout << '\t' << ext.extensionName << '\n';
 
@@ -148,5 +145,21 @@ namespace mvk {
         for (auto &layer : layers)
             std::cout << '\t' << layer.layerName << "\n";
 
+        auto devices = instance_.enumeratePhysicalDevices();
+        std::cout << "DEVICES:\n";
+        for (auto &device : devices) {
+            std::cout << "\t" << device.getProperties().deviceName << "\n\tEXTENSIONS:\n";
+            // for (auto& device_ext : device.enumerateDeviceExtensionProperties())
+            //     std::cout << "\t\t" << device_ext.extensionName << "\n";
+
+            // std::cout << "\t" << "LAYERS:\n";
+            // for (auto& layer : device.enumerateDeviceLayerProperties())
+            //     std::cout << "\t\t" << layer.layerName << "\n";
+
+            // std::cout << "\t" << "QUEUES:\n";
+            // for (auto &queue : device.getQueueFamilyProperties())
+            //     std::cout << "\t\t" << queue.queueCount << "\n";
+        }
+        std::cout << "\u001b[0m";
     }
 }

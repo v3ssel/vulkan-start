@@ -51,21 +51,27 @@ namespace mvk {
     bool VulkanValidator::CheckVideocard(vk::PhysicalDevice device, vk::SurfaceKHR surface, std::vector<const char *> device_required_ext) {
         QueueFamilyIndices family = QueueFamilyIndices::FindQueueFamily(device, surface);
         bool ext_check = CheckDeviceExtensions(device, device_required_ext);
-        return family.IsComplete() && true;
+
+        bool swap_chain_support = false;
+        if (ext_check) {
+            SwapChain sc(device, surface);
+            swap_chain_support = !sc.format_.empty() && !sc.present_modes_.empty();
+        }
+
+        return family.IsComplete() && ext_check;
     }
 
     bool VulkanValidator::CheckDeviceExtensions(vk::PhysicalDevice device, std::vector<const char *> device_required_ext) {
         auto device_exts = device.enumerateDeviceExtensionProperties();
 
         size_t matches = 0;
-        for (auto &ext : device_exts) {
-            for (auto &requested_ext : device_required_ext) {
-                if (ext.extensionName == requested_ext) {
+        for (auto &requested_ext : device_required_ext) {
+            for (auto &ext : device_exts) {
+                if (!strcmp(ext.extensionName, requested_ext)) {
                     matches++;
                 }
             }
         }
-
         if (matches != device_required_ext.size())
             return false;
 

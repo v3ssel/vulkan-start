@@ -6,6 +6,8 @@
 #include <vulkan/vulkan.hpp>
 
 #include "queue_families.h"
+#include "swapchain.h"
+#include <iostream>
 
 namespace mvk {
     class VulkanValidator {
