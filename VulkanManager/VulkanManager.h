@@ -34,20 +34,25 @@ namespace mvk {
          void TakeVideocard();
          void CreateLogicalDevice();
          void CreateSwapChain(GLFWwindow *window);
+         void CreateImageView();
 
         
          vk::Instance instance_;
          vk::DebugUtilsMessengerEXT debug_messenger_;
-         vk::SurfaceKHR surface_;
+
          vk::PhysicalDevice physical_device_ = VK_NULL_HANDLE;
          vk::Device logical_device_;
+         
          vk::Queue graphics_queue_;
          vk::Queue present_queue_;
-         vk::SwapchainKHR swapchain_;
          
+         vk::SurfaceKHR surface_;
+         vk::SwapchainKHR swapchain_;
          std::vector<vk::Image> swapchain_images_;
          vk::Extent2D sc_extent_;
          vk::Format sc_format_;
+
+         std::vector<vk::ImageView> image_views;
 
          VulkanValidator validator_;
 

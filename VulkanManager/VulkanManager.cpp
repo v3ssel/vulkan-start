@@ -160,6 +160,30 @@ namespace mvk {
         sc_extent_ = extent;
     }
 
+    void VulkanManager::CreateImageView() {
+        image_views.resize(swapchain_images_.size());
+
+        for (size_t i = 0; i < swapchain_images_.size(); ++i) {
+            vk::ImageViewCreateInfo image_info{};
+            image_info.sType = vk::StructureType::eImageViewCreateInfo;
+            image_info.setImage(swapchain_images_[i]);
+            image_info.setViewType(vk::ImageViewType::e2D);
+            image_info.setFormat(sc_format_);
+            image_info.setComponents(
+                vk::ComponentMapping(
+                    vk::ComponentSwizzle::eIdentity,
+                    vk::ComponentSwizzle::eIdentity,
+                    vk::ComponentSwizzle::eIdentity,
+                    vk::ComponentSwizzle::eIdentity
+                )
+            );
+            image_info.setSubresourceRange(
+                vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
+            );
+            image_views[i] = logical_device_.createImageView(image_info);
+        }
+    }
+
     void VulkanManager::FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT& debug_info) {
         debug_info.sType = vk::StructureType::eDebugUtilsMessengerCreateInfoEXT;
         debug_info.setMessageSeverity(
