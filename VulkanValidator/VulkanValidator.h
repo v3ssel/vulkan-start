@@ -5,8 +5,8 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
 
-#include "queue_families.h"
-#include "swapchain.h"
+#include "../QueueFamilies/QueueFamilies.h"
+#include "../SwapChainDetails/SwapChainDetails.h"
 #include <iostream>
 
 namespace mvk {

@@ -6,9 +6,13 @@
 #include <vulkan/vulkan.hpp>
 
 namespace mvk {
-    class SwapChain {
+    class SwapChainDetails {
        public:
-        SwapChain(vk::PhysicalDevice device, vk::SurfaceKHR surface);
+        SwapChainDetails(vk::PhysicalDevice device, vk::SurfaceKHR surface);
+
+        VkSurfaceFormatKHR ChooseSwapSurfaceFormat();
+        VkSurfaceFormatKHR ChooseSwapPresentMode();
+        VkSurfaceFormatKHR ChooseSwapExtent();
 
         vk::SurfaceCapabilitiesKHR capabilities_;
         std::vector<vk::SurfaceFormatKHR> format_;

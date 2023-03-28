@@ -1,6 +1,5 @@
-#include "../VulkanManager/vulkan_manager.h"
-#include "queue_families.h"
-#include "vulkan_manager.h"
+#include "../QueueFamilies/QueueFamilies.h"
+#include "VulkanManager.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,

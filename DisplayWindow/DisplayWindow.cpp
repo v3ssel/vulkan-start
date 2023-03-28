@@ -1,5 +1,4 @@
-#include "../DisplayWindow/display_window.h"
-#include "display_window.h"
+#include "DisplayWindow.h"
 
 namespace mvk {
     void Triangle::Run() {

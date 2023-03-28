@@ -1,4 +1,4 @@
-#include "vulkan_validator.h"
+#include "VulkanValidator.h"
 
 namespace mvk {
     void VulkanValidator::CheckRequestedExtensions(std::vector<const char *> requiement_extensions) {
@@ -54,7 +54,7 @@ namespace mvk {
 
         bool swap_chain_support = false;
         if (ext_check) {
-            SwapChain sc(device, surface);
+            SwapChainDetails sc(device, surface);
             swap_chain_support = !sc.format_.empty() && !sc.present_modes_.empty();
         }
 

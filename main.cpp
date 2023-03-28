@@ -4,8 +4,8 @@
 
 #include <iostream>
 
-#include "VulkanManager/vulkan_manager.h"
-#include "DisplayWindow/display_window.h"
+#include "VulkanManager/VulkanManager.h"
+#include "DisplayWindow/DisplayWindow.h"
 
 int main() {
     mvk::Triangle t;

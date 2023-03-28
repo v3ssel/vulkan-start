@@ -7,7 +7,7 @@
 
 #include <chrono>
 
-#include "../VulkanManager/vulkan_manager.h"
+#include "../VulkanManager/VulkanManager.h"
 
 constexpr int WIDTH = 800;
 constexpr int HEIGHT = 600;

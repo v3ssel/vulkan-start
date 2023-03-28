@@ -10,7 +10,7 @@
 #include <vector>
 #include <set>
 
-#include "vulkan_validator.h"
+#include "../VulkanValidator/VulkanValidator.h"
 
 namespace mvk {
     #ifdef NDEBUG
