@@ -33,6 +33,7 @@ namespace mvk {
          void SetupDebug();
          void TakeVideocard();
          void CreateLogicalDevice();
+         void CreateSwapChain(GLFWwindow *window);
 
         
          vk::Instance instance_;
@@ -42,7 +43,12 @@ namespace mvk {
          vk::Device logical_device_;
          vk::Queue graphics_queue_;
          vk::Queue present_queue_;
+         vk::SwapchainKHR swapchain_;
          
+         std::vector<vk::Image> swapchain_images_;
+         vk::Extent2D sc_extent_;
+         vk::Format sc_format_;
+
          VulkanValidator validator_;
 
          void PrintLoadedData();

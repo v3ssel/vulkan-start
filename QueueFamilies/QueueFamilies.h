@@ -8,13 +8,13 @@
 #include <optional>
 
 namespace mvk {
-    class QueueFamilyIndices {
+    class QueueFamilies {
        public:
         std::optional<uint32_t> graphics_family_;
         std::optional<uint32_t> present_family_;
 
         bool IsComplete();
-        static QueueFamilyIndices FindQueueFamily(vk::PhysicalDevice& device, vk::SurfaceKHR& surface);
+        static QueueFamilies FindQueueFamily(vk::PhysicalDevice& device, vk::SurfaceKHR& surface);
 };
 }
 

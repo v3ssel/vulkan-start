@@ -49,7 +49,7 @@ namespace mvk {
     }
 
     bool VulkanValidator::CheckVideocard(vk::PhysicalDevice device, vk::SurfaceKHR surface, std::vector<const char *> device_required_ext) {
-        QueueFamilyIndices family = QueueFamilyIndices::FindQueueFamily(device, surface);
+        QueueFamilies family = QueueFamilies::FindQueueFamily(device, surface);
         bool ext_check = CheckDeviceExtensions(device, device_required_ext);
 
         bool swap_chain_support = false;

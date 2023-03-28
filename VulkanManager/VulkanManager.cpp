@@ -83,7 +83,7 @@ namespace mvk {
     }
 
     void VulkanManager::CreateLogicalDevice() {
-        QueueFamilyIndices indices = QueueFamilyIndices::FindQueueFamily(physical_device_, surface_);
+        QueueFamilies indices = QueueFamilies::FindQueueFamily(physical_device_, surface_);
 
         std::vector<vk::DeviceQueueCreateInfo> device_queue_infos{};
         std::set<uint32_t> unique_families = {indices.graphics_family_.value(), indices.present_family_.value()};
@@ -112,7 +112,54 @@ namespace mvk {
         graphics_queue_ = logical_device_.getQueue(indices.graphics_family_.value(), 0);
         present_queue_ = logical_device_.getQueue(indices.present_family_.value(), 0);
     }
- 
+
+    void VulkanManager::CreateSwapChain(GLFWwindow *window) {
+        SwapChainDetails sc_details(physical_device_, surface_);
+
+        vk::SurfaceFormatKHR format = sc_details.ChooseSwapSurfaceFormat();
+        vk::PresentModeKHR present_mode = sc_details.ChooseSwapPresentMode();
+        vk::Extent2D extent = sc_details.ChooseSwapExtent(window);
+
+        uint32_t image_count = sc_details.capabilities_.minImageCount + 1;
+        if (sc_details.capabilities_.maxImageCount > 0 &&
+            image_count > sc_details.capabilities_.maxImageCount)
+            image_count = sc_details.capabilities_.maxImageCount;
+
+        vk::SwapchainCreateInfoKHR sc_info{};
+        sc_info.sType = vk::StructureType::eSwapchainCreateInfoKHR;
+        sc_info.setSurface(surface_);
+        sc_info.setMinImageCount(image_count);
+        sc_info.setImageFormat(format.format);
+        sc_info.setImageColorSpace(format.colorSpace);
+        sc_info.setImageExtent(extent);
+        sc_info.setImageArrayLayers(1);
+        sc_info.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment);
+
+        QueueFamilies families = QueueFamilies::FindQueueFamily(physical_device_, surface_);
+        uint32_t families_indices[] = {families.graphics_family_.value(), families.present_family_.value()};
+        if (families.graphics_family_.value() != families.present_family_.value()) {
+            sc_info.setImageSharingMode(vk::SharingMode::eConcurrent);
+            sc_info.setQueueFamilyIndexCount(2);
+            sc_info.setPQueueFamilyIndices(families_indices);
+        } else {
+            sc_info.setImageSharingMode(vk::SharingMode::eExclusive);
+            sc_info.setQueueFamilyIndexCount(0);
+            sc_info.setPQueueFamilyIndices(nullptr);
+        }
+
+        sc_info.setPreTransform(sc_details.capabilities_.currentTransform);
+        sc_info.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque);
+        sc_info.setPresentMode(present_mode);
+        sc_info.setClipped(VK_TRUE);
+        sc_info.setOldSwapchain(VK_NULL_HANDLE);
+
+        swapchain_ = logical_device_.createSwapchainKHR(sc_info);
+
+        swapchain_images_ = logical_device_.getSwapchainImagesKHR(swapchain_);
+        sc_format_ = format.format;
+        sc_extent_ = extent;
+    }
+
     void VulkanManager::FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT& debug_info) {
         debug_info.sType = vk::StructureType::eDebugUtilsMessengerCreateInfoEXT;
         debug_info.setMessageSeverity(

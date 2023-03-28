@@ -25,6 +25,7 @@ namespace mvk {
         CreateSurface();
         VulkanWrapped.TakeVideocard();
         VulkanWrapped.CreateLogicalDevice();
+        VulkanWrapped.CreateSwapChain(window_);
 
         VulkanWrapped.PrintLoadedData();
     }
@@ -45,6 +46,7 @@ namespace mvk {
         if (ENABLE_VALIDATION_LAYERS)
             VulkanWrapped.instance_.destroyDebugUtilsMessengerEXT(VulkanWrapped.debug_messenger_, nullptr, vk::DispatchLoaderDynamic(VulkanWrapped.instance_, vkGetInstanceProcAddr));
         
+        VulkanWrapped.logical_device_.destroySwapchainKHR(VulkanWrapped.swapchain_);
         VulkanWrapped.logical_device_.destroy();
         VulkanWrapped.instance_.destroySurfaceKHR(VulkanWrapped.surface_);
         VulkanWrapped.instance_.destroy();

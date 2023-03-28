@@ -1,12 +1,12 @@
 #include "QueueFamilies.h"
 
 namespace mvk {
-    bool QueueFamilyIndices::IsComplete() {
+    bool QueueFamilies::IsComplete() {
         return graphics_family_.has_value() && present_family_.has_value();
     }
 
-    QueueFamilyIndices QueueFamilyIndices::FindQueueFamily(vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
-        QueueFamilyIndices indices;
+    QueueFamilies QueueFamilies::FindQueueFamily(vk::PhysicalDevice& device, vk::SurfaceKHR& surface) {
+        QueueFamilies indices;
         auto queue_families = device.getQueueFamilyProperties();
 
         uint32_t i = 0;
