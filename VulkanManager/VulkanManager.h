@@ -11,6 +11,7 @@
 #include <set>
 
 #include "../VulkanValidator/VulkanValidator.h"
+#include "../Shaders/ShadersHelper.h"
 
 namespace mvk {
     #ifdef NDEBUG
@@ -35,6 +36,7 @@ namespace mvk {
          void CreateLogicalDevice();
          void CreateSwapChain(GLFWwindow *window);
          void CreateImageView();
+         void CreateGraphicsPipeline();
 
         
          vk::Instance instance_;
