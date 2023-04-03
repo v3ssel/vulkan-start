@@ -8,7 +8,7 @@
 #include "DisplayWindow/DisplayWindow.h"
 
 int main() {
-    mvk::Triangle t;
+    mvk::DisplayWindow t;
 
     try {
         t.Run();

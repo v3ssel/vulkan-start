@@ -21,12 +21,12 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
 
 namespace mvk {
     void VulkanManager::CreateInstance() {
-        if (ENABLE_VALIDATION_LAYERS && !validator_.CheckValidationLayersSupport(VALIDATION_LAYERS))
+        if (ENABLE_VALIDATION_LAYERS && !vo_.validator.CheckValidationLayersSupport(VALIDATION_LAYERS))
             throw std::runtime_error("Requested validation layers unavailable.");
 
         vk::ApplicationInfo app_info;
         app_info.sType = vk::StructureType::eApplicationInfo;
-        app_info.setPApplicationName("Vulkan Triangle");
+        app_info.setPApplicationName("Vulkan DisplayWindow");
         app_info.setApplicationVersion(VK_MAKE_API_VERSION(0, 1, 0, 0));
         app_info.setPEngineName("No Engine");
         app_info.setEngineVersion(VK_MAKE_API_VERSION(0, 1, 0, 0));
@@ -36,8 +36,8 @@ namespace mvk {
         create_info.sType = vk::StructureType::eInstanceCreateInfo;
         create_info.setPApplicationInfo(&app_info);
 
-        auto requirment_extensions = validator_.GetRequirmentInstanceExtension(ENABLE_VALIDATION_LAYERS);
-        validator_.CheckRequestedExtensions(requirment_extensions);
+        auto requirment_extensions = vo_.validator.GetRequirmentInstanceExtension(ENABLE_VALIDATION_LAYERS);
+        vo_.validator.CheckRequestedExtensions(requirment_extensions);
         create_info.setEnabledExtensionCount(requirment_extensions.size());
         create_info.setPpEnabledExtensionNames(requirment_extensions.data());
 
@@ -53,7 +53,7 @@ namespace mvk {
             create_info.setPNext(nullptr);
         }
 
-        if (vk::createInstance(&create_info, nullptr, &instance_) != vk::Result::eSuccess) {
+        if (vk::createInstance(&create_info, nullptr, &vo_.instance) != vk::Result::eSuccess) {
             throw std::runtime_error("Cannot create instance.");
         }
     }
@@ -64,26 +64,33 @@ namespace mvk {
         vk::DebugUtilsMessengerCreateInfoEXT debug_info;
         FillDebugInfo(debug_info);
 
-        debug_messenger_ = instance_.createDebugUtilsMessengerEXT(debug_info, nullptr, vk::DispatchLoaderDynamic(instance_, vkGetInstanceProcAddr));
+        vo_.debug_messenger = vo_.instance.createDebugUtilsMessengerEXT(debug_info, nullptr, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
+    }
+
+    void VulkanManager::CreateSurface(GLFWwindow *window) {
+        VkSurfaceKHR surface;
+        if (glfwCreateWindowSurface(vo_.instance, window, nullptr, &surface) != VK_SUCCESS)
+            throw std::runtime_error("Failed to create window surface.");
+        vo_.surface = vk::SurfaceKHR(surface);
     }
 
     void VulkanManager::TakeVideocard() {
-        auto devices = instance_.enumeratePhysicalDevices();
+        auto devices = vo_.instance.enumeratePhysicalDevices();
 
         if (devices.size() == 0) throw std::runtime_error("Supported GPU not found.");
 
         for (auto &device : devices) {
-            if (validator_.CheckVideocard(device, surface_, DEVICE_REQUIRED_EXTENSIONS)) {
-                physical_device_ = device;
+            if (vo_.validator.CheckVideocard(device, vo_.surface, DEVICE_REQUIRED_EXTENSIONS)) {
+                vo_.physical_device = device;
                 break;
             }
         }
-        if (static_cast<VkPhysicalDevice>(physical_device_) == nullptr)
+        if (static_cast<VkPhysicalDevice>(vo_.physical_device) == nullptr)
             throw std::runtime_error("Supported GPU not found.");
     }
 
     void VulkanManager::CreateLogicalDevice() {
-        QueueFamilies indices = QueueFamilies::FindQueueFamily(physical_device_, surface_);
+        QueueFamilies indices = QueueFamilies::FindQueueFamily(vo_.physical_device, vo_.surface);
 
         std::vector<vk::DeviceQueueCreateInfo> device_queue_infos{};
         std::set<uint32_t> unique_families = {indices.graphics_family_.value(), indices.present_family_.value()};
@@ -108,13 +115,13 @@ namespace mvk {
         vk::PhysicalDeviceFeatures features{};
         logical_device_info.setPEnabledFeatures(&features);
 
-        logical_device_ = physical_device_.createDevice(logical_device_info);
-        graphics_queue_ = logical_device_.getQueue(indices.graphics_family_.value(), 0);
-        present_queue_ = logical_device_.getQueue(indices.present_family_.value(), 0);
+        vo_.logical_device = vo_.physical_device.createDevice(logical_device_info);
+        vo_.graphics_queue = vo_.logical_device.getQueue(indices.graphics_family_.value(), 0);
+        vo_.present_queue = vo_.logical_device.getQueue(indices.present_family_.value(), 0);
     }
 
     void VulkanManager::CreateSwapChain(GLFWwindow *window) {
-        SwapChainDetails sc_details(physical_device_, surface_);
+        SwapChainDetails sc_details(vo_.physical_device, vo_.surface);
 
         vk::SurfaceFormatKHR format = sc_details.ChooseSwapSurfaceFormat();
         vk::PresentModeKHR present_mode = sc_details.ChooseSwapPresentMode();
@@ -127,7 +134,7 @@ namespace mvk {
 
         vk::SwapchainCreateInfoKHR sc_info{};
         sc_info.sType = vk::StructureType::eSwapchainCreateInfoKHR;
-        sc_info.setSurface(surface_);
+        sc_info.setSurface(vo_.surface);
         sc_info.setMinImageCount(image_count);
         sc_info.setImageFormat(format.format);
         sc_info.setImageColorSpace(format.colorSpace);
@@ -135,7 +142,7 @@ namespace mvk {
         sc_info.setImageArrayLayers(1);
         sc_info.setImageUsage(vk::ImageUsageFlagBits::eColorAttachment);
 
-        QueueFamilies families = QueueFamilies::FindQueueFamily(physical_device_, surface_);
+        QueueFamilies families = QueueFamilies::FindQueueFamily(vo_.physical_device, vo_.surface);
         uint32_t families_indices[] = {families.graphics_family_.value(), families.present_family_.value()};
         if (families.graphics_family_.value() != families.present_family_.value()) {
             sc_info.setImageSharingMode(vk::SharingMode::eConcurrent);
@@ -153,22 +160,22 @@ namespace mvk {
         sc_info.setClipped(VK_TRUE);
         sc_info.setOldSwapchain(VK_NULL_HANDLE);
 
-        swapchain_ = logical_device_.createSwapchainKHR(sc_info);
+        vo_.swapchain = vo_.logical_device.createSwapchainKHR(sc_info);
 
-        swapchain_images_ = logical_device_.getSwapchainImagesKHR(swapchain_);
-        sc_format_ = format.format;
-        sc_extent_ = extent;
+        vo_.swapchain_images = vo_.logical_device.getSwapchainImagesKHR(vo_.swapchain);
+        vo_.sc_format = format.format;
+        vo_.sc_extent = extent;
     }
 
     void VulkanManager::CreateImageView() {
-        image_views.resize(swapchain_images_.size());
+        vo_.image_views.resize(vo_.swapchain_images.size());
 
-        for (size_t i = 0; i < swapchain_images_.size(); ++i) {
+        for (size_t i = 0; i < vo_.swapchain_images.size(); ++i) {
             vk::ImageViewCreateInfo image_info{};
             image_info.sType = vk::StructureType::eImageViewCreateInfo;
-            image_info.setImage(swapchain_images_[i]);
+            image_info.setImage(vo_.swapchain_images[i]);
             image_info.setViewType(vk::ImageViewType::e2D);
-            image_info.setFormat(sc_format_);
+            image_info.setFormat(vo_.sc_format);
             image_info.setComponents(
                 vk::ComponentMapping(
                     vk::ComponentSwizzle::eIdentity,
@@ -180,7 +187,7 @@ namespace mvk {
             image_info.setSubresourceRange(
                 vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
             );
-            image_views[i] = logical_device_.createImageView(image_info);
+            vo_.image_views[i] = vo_.logical_device.createImageView(image_info);
         }
     }
 
@@ -188,8 +195,8 @@ namespace mvk {
         vk::ShaderModuleCreateInfo vertex_info = ShadersHelper::LoadVertexShader();
         vk::ShaderModuleCreateInfo fragment_info = ShadersHelper::LoadFragmentShader();
         
-        vk::ShaderModule vertex_module = logical_device_.createShaderModule(vertex_info);
-        vk::ShaderModule fragment_module = logical_device_.createShaderModule(fragment_info);
+        vk::ShaderModule vertex_module = vo_.logical_device.createShaderModule(vertex_info);
+        vk::ShaderModule fragment_module = vo_.logical_device.createShaderModule(fragment_info);
         std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
 
         vk::PipelineShaderStageCreateInfo vertex_pipeline_info{};
@@ -207,9 +214,108 @@ namespace mvk {
         shader_stages.push_back(fragment_pipeline_info);
 
 
+        std::vector<vk::DynamicState> dynamic_states = {
+            vk::DynamicState::eViewport,
+            vk::DynamicState::eScissor
+        };
 
-        logical_device_.destroyShaderModule(vertex_module);
-        logical_device_.destroyShaderModule(fragment_module);
+        vk::PipelineDynamicStateCreateInfo dynamic_state_info{};
+        dynamic_state_info.sType = vk::StructureType::ePipelineDynamicStateCreateInfo;
+        dynamic_state_info.setDynamicStateCount(static_cast<uint32_t>(dynamic_states.size()));
+        dynamic_state_info.setPDynamicStates(dynamic_states.data());
+
+
+        vk::PipelineVertexInputStateCreateInfo vertex_input_info{};
+        vertex_input_info.sType = vk::StructureType::ePipelineVertexInputStateCreateInfo;
+        vertex_input_info.setVertexBindingDescriptionCount(0);
+        vertex_input_info.setVertexAttributeDescriptionCount(0);
+
+
+        // DRAW TRIANGLES HERE
+        vk::PipelineInputAssemblyStateCreateInfo input_assembly_info{};
+        input_assembly_info.sType = vk::StructureType::ePipelineInputAssemblyStateCreateInfo;
+        input_assembly_info.setTopology(vk::PrimitiveTopology::eTriangleList);
+        input_assembly_info.setPrimitiveRestartEnable(VK_FALSE);
+
+
+        vk::Viewport viewport{};
+        viewport.setX(0.0f);
+        viewport.setY(0.0f);
+        viewport.setWidth(vo_.sc_extent.width);
+        viewport.setHeight(vo_.sc_extent.height);
+        viewport.setMinDepth(0.0f);
+        viewport.setMaxDepth(1.0f);
+
+        vk::Rect2D scissor{};
+        scissor.setOffset(vk::Offset2D((double)0, (double)0));
+        scissor.setExtent(vo_.sc_extent);
+
+
+        vk::PipelineRasterizationStateCreateInfo rasterizer_info{};
+        rasterizer_info.sType = vk::StructureType::ePipelineRasterizationStateCreateInfo;
+        rasterizer_info.setDepthClampEnable(VK_FALSE);
+        rasterizer_info.setRasterizerDiscardEnable(VK_FALSE);
+        rasterizer_info.setPolygonMode(vk::PolygonMode::eFill);
+        rasterizer_info.setLineWidth(1.0f);
+        rasterizer_info.setCullMode(vk::CullModeFlagBits::eBack);
+        rasterizer_info.setFrontFace(vk::FrontFace::eClockwise);
+        rasterizer_info.setDepthBiasEnable(VK_FALSE);
+        rasterizer_info.setDepthBiasConstantFactor(0.0f);
+        rasterizer_info.setDepthBiasClamp(0.0f);
+        rasterizer_info.setDepthBiasSlopeFactor(0.0f);
+
+
+        // multisampling is off
+        vk::PipelineMultisampleStateCreateInfo multisampling_info{};
+        multisampling_info.sType = vk::StructureType::ePipelineMultisampleStateCreateInfo;
+        multisampling_info.setSampleShadingEnable(VK_FALSE);
+        multisampling_info.setRasterizationSamples(vk::SampleCountFlagBits::e1);
+        multisampling_info.setMinSampleShading(1.0f);
+        multisampling_info.setPSampleMask(nullptr);
+        multisampling_info.setAlphaToCoverageEnable(VK_FALSE);
+        multisampling_info.setAlphaToOneEnable(VK_FALSE);
+
+
+        vk::PipelineColorBlendAttachmentState colorblend{};
+        colorblend.setColorWriteMask(vk::ColorComponentFlags(
+            vk::ColorComponentFlagBits::eR |
+            vk::ColorComponentFlagBits::eG |
+            vk::ColorComponentFlagBits::eB |
+            vk::ColorComponentFlagBits::eA
+        ));
+        colorblend.setBlendEnable(VK_TRUE);
+        colorblend.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha);
+        colorblend.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha);
+        colorblend.setColorBlendOp(vk::BlendOp::eAdd);
+
+        colorblend.setSrcAlphaBlendFactor(vk::BlendFactor::eOne);
+        colorblend.setDstAlphaBlendFactor(vk::BlendFactor::eZero);
+        colorblend.setAlphaBlendOp(vk::BlendOp::eAdd);
+
+
+        vk::PipelineLayoutCreateInfo layout_info{};
+        layout_info.sType = vk::StructureType::ePipelineLayoutCreateInfo;
+        layout_info.setSetLayoutCount(0);
+        layout_info.setPushConstantRangeCount(0);
+        
+        vo_.layout = vo_.logical_device.createPipelineLayout(layout_info);
+        
+        vo_.logical_device.destroyShaderModule(vertex_module);
+        vo_.logical_device.destroyShaderModule(fragment_module);
+    }
+
+    void VulkanManager::DestroyEverything() {
+        if (ENABLE_VALIDATION_LAYERS)
+            vo_.instance.destroyDebugUtilsMessengerEXT(vo_.debug_messenger, nullptr, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
+        
+        vo_.logical_device.destroyPipelineLayout(vo_.layout);
+        for (auto image_view : vo_.image_views) {
+            vo_.logical_device.destroyImageView(image_view);
+        }
+        vo_.logical_device.destroySwapchainKHR(vo_.swapchain);
+        vo_.logical_device.destroy();
+        vo_.instance.destroySurfaceKHR(vo_.surface);
+        vo_.instance.destroy();
     }
 
     void VulkanManager::FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT& debug_info) {
@@ -243,7 +349,7 @@ namespace mvk {
         for (auto &layer : layers)
             std::cout << '\t' << layer.layerName << "\n";
 
-        auto devices = instance_.enumeratePhysicalDevices();
+        auto devices = vo_.instance.enumeratePhysicalDevices();
         std::cout << "DEVICES:\n";
         for (auto &device : devices) {
             std::cout << "\t" << device.getProperties().deviceName << "\n\tEXTENSIONS:\n";

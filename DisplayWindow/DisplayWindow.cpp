@@ -1,14 +1,14 @@
 #include "DisplayWindow.h"
 
 namespace mvk {
-    void Triangle::Run() {
+    void DisplayWindow::Run() {
         InitWindow();
         InitVulkan();
         MainLoop();
         CleanUp();      
     }
 
-    void Triangle::InitWindow() {
+    void DisplayWindow::InitWindow() {
         if (glfwInit() == GLFW_FALSE) throw std::runtime_error("Cannot initialize GLFW.");
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -19,10 +19,10 @@ namespace mvk {
         // glfwMakeContextCurrent(window_);
     }
 
-    void Triangle::InitVulkan() {
+    void DisplayWindow::InitVulkan() {
         VulkanWrapped.CreateInstance();
         VulkanWrapped.SetupDebug();
-        CreateSurface();
+        VulkanWrapped.CreateSurface(window_);
         VulkanWrapped.TakeVideocard();
         VulkanWrapped.CreateLogicalDevice();
         VulkanWrapped.CreateSwapChain(window_);
@@ -32,7 +32,7 @@ namespace mvk {
         // VulkanWrapped.PrintLoadedData();
     }
 
-    void Triangle::MainLoop() {
+    void DisplayWindow::MainLoop() {
         while(!glfwWindowShouldClose(window_)) {
             // glClear(GL_COLOR_BUFFER_BIT);
 
@@ -44,27 +44,10 @@ namespace mvk {
         }        
     }
 
-    void Triangle::CleanUp() {
-        if (ENABLE_VALIDATION_LAYERS)
-            VulkanWrapped.instance_.destroyDebugUtilsMessengerEXT(VulkanWrapped.debug_messenger_, nullptr, vk::DispatchLoaderDynamic(VulkanWrapped.instance_, vkGetInstanceProcAddr));
-        
-        for (auto image_view : VulkanWrapped.image_views) {
-            VulkanWrapped.logical_device_.destroyImageView(image_view);
-        }
-        VulkanWrapped.logical_device_.destroySwapchainKHR(VulkanWrapped.swapchain_);
-        VulkanWrapped.logical_device_.destroy();
-        VulkanWrapped.instance_.destroySurfaceKHR(VulkanWrapped.surface_);
-        VulkanWrapped.instance_.destroy();
+    void DisplayWindow::CleanUp() {
+        VulkanWrapped.DestroyEverything();
         glfwDestroyWindow(window_);
 
         glfwTerminate();
-    }
-
-    void Triangle::CreateSurface() {
-        VkSurfaceKHR surface;
-
-        if (glfwCreateWindowSurface(VulkanWrapped.instance_, window_, nullptr, &surface) != VK_SUCCESS)
-            throw std::runtime_error("Failed to create window surface.");
-        VulkanWrapped.surface_ = vk::SurfaceKHR(surface);
     }
 }
