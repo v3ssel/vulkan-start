@@ -2,3 +2,6 @@
 .vscode
 bin
 obj
+*.o
+*.a
+build

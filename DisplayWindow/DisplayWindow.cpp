@@ -27,8 +27,9 @@ namespace mvk {
         VulkanWrapped.CreateLogicalDevice();
         VulkanWrapped.CreateSwapChain(window_);
         VulkanWrapped.CreateImageView();
+        VulkanWrapped.CreateGraphicsPipeline();
 
-        VulkanWrapped.PrintLoadedData();
+        // VulkanWrapped.PrintLoadedData();
     }
 
     void Triangle::MainLoop() {

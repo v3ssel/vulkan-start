@@ -186,10 +186,10 @@ namespace mvk {
 
     void VulkanManager::CreateGraphicsPipeline() {
         vk::ShaderModuleCreateInfo vertex_info = ShadersHelper::LoadVertexShader();
-        // vk::ShaderModuleCreateInfo fragment_info = ShadersHelper::LoadFragmentShader();
-
+        vk::ShaderModuleCreateInfo fragment_info = ShadersHelper::LoadFragmentShader();
+        
         vk::ShaderModule vertex_module = logical_device_.createShaderModule(vertex_info);
-        // vk::ShaderModule fragment_module = logical_device_.createShaderModule(fragment_info);
+        vk::ShaderModule fragment_module = logical_device_.createShaderModule(fragment_info);
         std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
 
         vk::PipelineShaderStageCreateInfo vertex_pipeline_info{};
@@ -199,17 +199,17 @@ namespace mvk {
         vertex_pipeline_info.setPName("main");
         shader_stages.push_back(vertex_pipeline_info);
 
-        // vk::PipelineShaderStageCreateInfo fragment_pipeline_info{};
-        // fragment_pipeline_info.sType = vk::StructureType::ePipelineShaderStageCreateInfo;
-        // fragment_pipeline_info.setStage(vk::ShaderStageFlagBits::eFragment);
-        // fragment_pipeline_info.setModule(fragment_module);
-        // fragment_pipeline_info.setPName("main");
-        // shader_stages.push_back(fragment_pipeline_info);
+        vk::PipelineShaderStageCreateInfo fragment_pipeline_info{};
+        fragment_pipeline_info.sType = vk::StructureType::ePipelineShaderStageCreateInfo;
+        fragment_pipeline_info.setStage(vk::ShaderStageFlagBits::eFragment);
+        fragment_pipeline_info.setModule(fragment_module);
+        fragment_pipeline_info.setPName("main");
+        shader_stages.push_back(fragment_pipeline_info);
 
 
 
         logical_device_.destroyShaderModule(vertex_module);
-        // logical_device_.destroyShaderModule(fragment_module);
+        logical_device_.destroyShaderModule(fragment_module);
     }
 
     void VulkanManager::FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT& debug_info) {
