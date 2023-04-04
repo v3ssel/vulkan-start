@@ -29,6 +29,8 @@ namespace mvk {
         VulkanWrapped.CreateImageView();
         VulkanWrapped.CreateRenderPass();
         VulkanWrapped.CreateGraphicsPipeline();
+        VulkanWrapped.CreateFramebuffers();
+        VulkanWrapped.CreateCommandPool();
 
         // VulkanWrapped.PrintLoadedData();
     }

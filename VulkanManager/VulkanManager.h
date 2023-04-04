@@ -40,12 +40,16 @@ namespace mvk {
         void CreateImageView();
         void CreateRenderPass();
         void CreateGraphicsPipeline();
+        void CreateFramebuffers();
+        void CreateCommandPool();
+        void CreateCommandBuffer();
 
         void DestroyEverything();
         void PrintLoadedData();
          
        private:
         void FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info);
+        void RecordCommandBuffer(vk::CommandBuffer, uint32_t image_index);
         
         mvk::VulkanObjects vo_;
     };

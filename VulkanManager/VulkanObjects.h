@@ -29,6 +29,11 @@ namespace mvk {
         vk::RenderPass render_pass;
         vk::Pipeline pipeline;
 
+        std::vector<vk::Framebuffer> framebuffers;
+
+        vk::CommandPool command_pool;
+        vk::CommandBuffer command_buffer;
+
         VulkanValidator validator;
     };
 }

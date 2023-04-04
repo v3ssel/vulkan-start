@@ -277,17 +277,59 @@ namespace mvk {
         vo_.logical_device.destroyShaderModule(fragment_module);
     }
 
+    void VulkanManager::CreateFramebuffers() {
+        vo_.framebuffers.resize(vo_.image_views.size());
+        for (size_t i = 0; i < vo_.image_views.size(); ++i) {
+            vk::ImageView attachments[] = {vo_.image_views[i]};
+
+            vk::FramebufferCreateInfo framebuffer_info{};
+            framebuffer_info.sType = vk::StructureType::eFramebufferCreateInfo;
+            framebuffer_info.setRenderPass(vo_.render_pass);
+            framebuffer_info.setAttachmentCount(1);
+            framebuffer_info.setPAttachments(attachments);
+            framebuffer_info.setWidth(vo_.sc_extent.width);
+            framebuffer_info.setHeight(vo_.sc_extent.height);
+            framebuffer_info.setLayers(1);
+
+            vo_.framebuffers[i] = vo_.logical_device.createFramebuffer(framebuffer_info);
+        }
+    }
+
+    void VulkanManager::CreateCommandPool() {
+        QueueFamilies queue = QueueFamilies::FindQueueFamily(vo_.physical_device, vo_.surface);
+        vk::CommandPoolCreateInfo cmd_pool_info{};
+        cmd_pool_info.sType = vk::StructureType::eCommandPoolCreateInfo;
+        cmd_pool_info.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+        cmd_pool_info.setQueueFamilyIndex(queue.graphics_family_.value());
+
+        vo_.command_pool = vo_.logical_device.createCommandPool(cmd_pool_info);
+    }
+
+    void VulkanManager::CreateCommandBuffer() {
+        vk::CommandBufferAllocateInfo cmd_buff_ainfo{};
+        cmd_buff_ainfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
+        cmd_buff_ainfo.setCommandPool(vo_.command_pool);
+        cmd_buff_ainfo.setLevel(vk::CommandBufferLevel::ePrimary);
+        cmd_buff_ainfo.setCommandBufferCount(1);
+
+        vo_.command_buffer = vo_.logical_device.allocateCommandBuffers(cmd_buff_ainfo)[0];
+    }
+
     void VulkanManager::DestroyEverything() {
-        if (ENABLE_VALIDATION_LAYERS)
-            vo_.instance.destroyDebugUtilsMessengerEXT(vo_.debug_messenger, nullptr, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
-        
+        vo_.logical_device.destroyCommandPool(vo_.command_pool);
+
+        for (auto framebuffer : vo_.framebuffers)
+            vo_.logical_device.destroyFramebuffer(framebuffer);
+
         vo_.logical_device.destroyPipeline(vo_.pipeline);
         vo_.logical_device.destroyPipelineLayout(vo_.layout);
         vo_.logical_device.destroyRenderPass(vo_.render_pass);
 
-        for (auto image_view : vo_.image_views) {
+        for (auto image_view : vo_.image_views)
             vo_.logical_device.destroyImageView(image_view);
-        }
+
+        if (ENABLE_VALIDATION_LAYERS)
+            vo_.instance.destroyDebugUtilsMessengerEXT(vo_.debug_messenger, nullptr, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
 
         vo_.logical_device.destroySwapchainKHR(vo_.swapchain);
         vo_.logical_device.destroy();
@@ -312,6 +354,46 @@ namespace mvk {
 
         debug_info.setPfnUserCallback(DebugCallback);
         debug_info.setPUserData(nullptr);
+    }
+
+    void VulkanManager::RecordCommandBuffer(vk::CommandBuffer command_buffer, uint32_t image_index) {
+        vk::CommandBufferBeginInfo begin_info{};
+        begin_info.sType = vk::StructureType::eCommandBufferBeginInfo;
+        begin_info.setPInheritanceInfo(nullptr);
+        
+        command_buffer.begin(begin_info);
+
+        vk::RenderPassBeginInfo render_pass_begin_info{};
+        render_pass_begin_info.sType = vk::StructureType::eRenderPassBeginInfo;
+        render_pass_begin_info.setRenderPass(vo_.render_pass);
+        render_pass_begin_info.setFramebuffer(vo_.framebuffers[image_index]);
+        render_pass_begin_info.setRenderArea(vk::Rect2D({0, 0}, vo_.sc_extent));
+
+        vk::ClearValue clear_color(vk::ClearColorValue(0.0f, 0.0f, 0.0f, 0.0f));
+        render_pass_begin_info.setPClearValues(&clear_color);
+        render_pass_begin_info.setClearValueCount(1);
+        command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
+        command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vo_.pipeline);
+
+        vk::Viewport viewport{};
+        viewport.setX(0.0f);
+        viewport.setY(0.0f);
+        viewport.setWidth(static_cast<float>(vo_.sc_extent.width));
+        viewport.setHeight(static_cast<float>(vo_.sc_extent.height));
+        viewport.setMinDepth(0.0f);
+        viewport.setMaxDepth(1.0f);
+        command_buffer.setViewport(0, 1, &viewport);
+
+        vk::Rect2D scissor{};
+        scissor.setOffset(vk::Offset2D((double)0, (double)0));
+        scissor.setExtent(vo_.sc_extent);
+        command_buffer.setScissor(0, 1, &scissor);
+
+        command_buffer.draw(3, 1, 0, 0);
+
+        command_buffer.endRenderPass();
+
+        command_buffer.end();
     }
 
     void VulkanManager::PrintLoadedData() {
