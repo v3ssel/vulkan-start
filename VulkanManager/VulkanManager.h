@@ -11,6 +11,8 @@
 #include <set>
 
 #include "VulkanObjects.h"
+#include "../Shaders/ShadersHelper.h"
+#include "../GraphicsSettings/GraphicsSettings.h"
 
 namespace mvk {
     #ifdef NDEBUG
@@ -28,23 +30,24 @@ namespace mvk {
     };
 
     class VulkanManager {
-        public:
-         void CreateInstance();
-         void SetupDebug();
-         void CreateSurface(GLFWwindow *window);
-         void TakeVideocard();
-         void CreateLogicalDevice();
-         void CreateSwapChain(GLFWwindow *window);
-         void CreateImageView();
-         void CreateGraphicsPipeline();
+       public:
+        void CreateInstance();
+        void SetupDebug();
+        void CreateSurface(GLFWwindow *window);
+        void TakeVideocard();
+        void CreateLogicalDevice();
+        void CreateSwapChain(GLFWwindow *window);
+        void CreateImageView();
+        void CreateRenderPass();
+        void CreateGraphicsPipeline();
 
-         void DestroyEverything();
-         void PrintLoadedData();
+        void DestroyEverything();
+        void PrintLoadedData();
          
-        private:
-         void FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info);
-         
-         mvk::VulkanObjects vo_;
+       private:
+        void FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info);
+        
+        mvk::VulkanObjects vo_;
     };
 }
 

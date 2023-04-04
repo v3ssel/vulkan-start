@@ -6,7 +6,6 @@
 #include <vulkan/vulkan.hpp>
 
 #include "../VulkanValidator/VulkanValidator.h"
-#include "../Shaders/ShadersHelper.h"
 
 namespace mvk {
     struct VulkanObjects {
@@ -24,10 +23,11 @@ namespace mvk {
         std::vector<vk::Image> swapchain_images;
         vk::Extent2D sc_extent;
         vk::Format sc_format;
-
         std::vector<vk::ImageView> image_views;
 
         vk::PipelineLayout layout;
+        vk::RenderPass render_pass;
+        vk::Pipeline pipeline;
 
         VulkanValidator validator;
     };

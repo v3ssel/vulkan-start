@@ -191,115 +191,88 @@ namespace mvk {
         }
     }
 
+    void VulkanManager::CreateRenderPass() {
+        vk::AttachmentDescription color_attachment{};
+        color_attachment.setFormat(vo_.sc_format);
+        color_attachment.setSamples(vk::SampleCountFlagBits::e1);
+        color_attachment.setLoadOp(vk::AttachmentLoadOp::eClear);
+        color_attachment.setStoreOp(vk::AttachmentStoreOp::eStore);
+        color_attachment.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare);
+        color_attachment.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare);
+        color_attachment.setInitialLayout(vk::ImageLayout::eUndefined);
+        color_attachment.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
+
+        vk::AttachmentReference color_attachment_ref{};
+        color_attachment_ref.setAttachment(0);
+        color_attachment_ref.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+
+        vk::SubpassDescription subpass{};
+        subpass.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics);
+        subpass.setColorAttachmentCount(1);
+        subpass.setPColorAttachments(&color_attachment_ref);
+
+        vk::RenderPassCreateInfo render_pass_info{};
+        render_pass_info.sType = vk::StructureType::eRenderPassCreateInfo;
+        render_pass_info.setAttachmentCount(1);
+        render_pass_info.setPAttachments(&color_attachment);
+        render_pass_info.setSubpassCount(1);
+        render_pass_info.setPSubpasses(&subpass);
+
+        vo_.render_pass = vo_.logical_device.createRenderPass(render_pass_info);
+    }
+
     void VulkanManager::CreateGraphicsPipeline() {
         vk::ShaderModuleCreateInfo vertex_info = ShadersHelper::LoadVertexShader();
         vk::ShaderModuleCreateInfo fragment_info = ShadersHelper::LoadFragmentShader();
         
         vk::ShaderModule vertex_module = vo_.logical_device.createShaderModule(vertex_info);
         vk::ShaderModule fragment_module = vo_.logical_device.createShaderModule(fragment_info);
-        std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
-
-        vk::PipelineShaderStageCreateInfo vertex_pipeline_info{};
-        vertex_pipeline_info.sType = vk::StructureType::ePipelineShaderStageCreateInfo;
-        vertex_pipeline_info.setStage(vk::ShaderStageFlagBits::eVertex);
-        vertex_pipeline_info.setModule(vertex_module);
-        vertex_pipeline_info.setPName("main");
-        shader_stages.push_back(vertex_pipeline_info);
-
-        vk::PipelineShaderStageCreateInfo fragment_pipeline_info{};
-        fragment_pipeline_info.sType = vk::StructureType::ePipelineShaderStageCreateInfo;
-        fragment_pipeline_info.setStage(vk::ShaderStageFlagBits::eFragment);
-        fragment_pipeline_info.setModule(fragment_module);
-        fragment_pipeline_info.setPName("main");
-        shader_stages.push_back(fragment_pipeline_info);
 
 
-        std::vector<vk::DynamicState> dynamic_states = {
-            vk::DynamicState::eViewport,
-            vk::DynamicState::eScissor
-        };
-
-        vk::PipelineDynamicStateCreateInfo dynamic_state_info{};
-        dynamic_state_info.sType = vk::StructureType::ePipelineDynamicStateCreateInfo;
-        dynamic_state_info.setDynamicStateCount(static_cast<uint32_t>(dynamic_states.size()));
-        dynamic_state_info.setPDynamicStates(dynamic_states.data());
-
-
-        vk::PipelineVertexInputStateCreateInfo vertex_input_info{};
-        vertex_input_info.sType = vk::StructureType::ePipelineVertexInputStateCreateInfo;
-        vertex_input_info.setVertexBindingDescriptionCount(0);
-        vertex_input_info.setVertexAttributeDescriptionCount(0);
-
-
-        // DRAW TRIANGLES HERE
-        vk::PipelineInputAssemblyStateCreateInfo input_assembly_info{};
-        input_assembly_info.sType = vk::StructureType::ePipelineInputAssemblyStateCreateInfo;
-        input_assembly_info.setTopology(vk::PrimitiveTopology::eTriangleList);
-        input_assembly_info.setPrimitiveRestartEnable(VK_FALSE);
-
-
-        vk::Viewport viewport{};
-        viewport.setX(0.0f);
-        viewport.setY(0.0f);
-        viewport.setWidth(vo_.sc_extent.width);
-        viewport.setHeight(vo_.sc_extent.height);
-        viewport.setMinDepth(0.0f);
-        viewport.setMaxDepth(1.0f);
-
-        vk::Rect2D scissor{};
-        scissor.setOffset(vk::Offset2D((double)0, (double)0));
-        scissor.setExtent(vo_.sc_extent);
-
-
-        vk::PipelineRasterizationStateCreateInfo rasterizer_info{};
-        rasterizer_info.sType = vk::StructureType::ePipelineRasterizationStateCreateInfo;
-        rasterizer_info.setDepthClampEnable(VK_FALSE);
-        rasterizer_info.setRasterizerDiscardEnable(VK_FALSE);
-        rasterizer_info.setPolygonMode(vk::PolygonMode::eFill);
-        rasterizer_info.setLineWidth(1.0f);
-        rasterizer_info.setCullMode(vk::CullModeFlagBits::eBack);
-        rasterizer_info.setFrontFace(vk::FrontFace::eClockwise);
-        rasterizer_info.setDepthBiasEnable(VK_FALSE);
-        rasterizer_info.setDepthBiasConstantFactor(0.0f);
-        rasterizer_info.setDepthBiasClamp(0.0f);
-        rasterizer_info.setDepthBiasSlopeFactor(0.0f);
-
-
-        // multisampling is off
-        vk::PipelineMultisampleStateCreateInfo multisampling_info{};
-        multisampling_info.sType = vk::StructureType::ePipelineMultisampleStateCreateInfo;
-        multisampling_info.setSampleShadingEnable(VK_FALSE);
-        multisampling_info.setRasterizationSamples(vk::SampleCountFlagBits::e1);
-        multisampling_info.setMinSampleShading(1.0f);
-        multisampling_info.setPSampleMask(nullptr);
-        multisampling_info.setAlphaToCoverageEnable(VK_FALSE);
-        multisampling_info.setAlphaToOneEnable(VK_FALSE);
-
-
-        vk::PipelineColorBlendAttachmentState colorblend{};
-        colorblend.setColorWriteMask(vk::ColorComponentFlags(
-            vk::ColorComponentFlagBits::eR |
-            vk::ColorComponentFlagBits::eG |
-            vk::ColorComponentFlagBits::eB |
-            vk::ColorComponentFlagBits::eA
-        ));
-        colorblend.setBlendEnable(VK_TRUE);
-        colorblend.setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha);
-        colorblend.setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha);
-        colorblend.setColorBlendOp(vk::BlendOp::eAdd);
-
-        colorblend.setSrcAlphaBlendFactor(vk::BlendFactor::eOne);
-        colorblend.setDstAlphaBlendFactor(vk::BlendFactor::eZero);
-        colorblend.setAlphaBlendOp(vk::BlendOp::eAdd);
+        mvk::GraphicsSettings graphics_settings;
+        auto shader_stages = graphics_settings.CreateShadersStages({vertex_module, fragment_module});
+        auto vertex_input_info = graphics_settings.CreateVertexInput();
+        auto input_assembly_info = graphics_settings.CreateInputAssembly();
+        auto viewport_info = graphics_settings.CreateViewport();
+        auto rasterizer_info = graphics_settings.CreateRasterizer();
+        auto multisampling_info = graphics_settings.CreateMultisampling();
+        auto colorblend = graphics_settings.CreateColorBlend();
+        auto colorblend_info = graphics_settings.CreateColorBlendInfo(colorblend);
+        auto dynamic_state_info = graphics_settings.CreateDynamicStates();
 
 
         vk::PipelineLayoutCreateInfo layout_info{};
         layout_info.sType = vk::StructureType::ePipelineLayoutCreateInfo;
         layout_info.setSetLayoutCount(0);
         layout_info.setPushConstantRangeCount(0);
-        
         vo_.layout = vo_.logical_device.createPipelineLayout(layout_info);
         
+
+        vk::GraphicsPipelineCreateInfo pipeline_info{};
+        pipeline_info.sType = vk::StructureType::eGraphicsPipelineCreateInfo;
+        pipeline_info.setStageCount(shader_stages.size());
+        pipeline_info.setStages(shader_stages);
+
+        pipeline_info.setPVertexInputState(&vertex_input_info);
+        pipeline_info.setPInputAssemblyState(&input_assembly_info);
+        pipeline_info.setPViewportState(&viewport_info);
+        pipeline_info.setPRasterizationState(&rasterizer_info);
+        pipeline_info.setPMultisampleState(&multisampling_info);
+        pipeline_info.setPDepthStencilState(nullptr);
+        pipeline_info.setPDynamicState(&dynamic_state_info);
+        pipeline_info.setPColorBlendState(&colorblend_info);
+        pipeline_info.setLayout(vo_.layout);
+        pipeline_info.setRenderPass(vo_.render_pass);
+        pipeline_info.setSubpass(0);
+        pipeline_info.setBasePipelineHandle(VK_NULL_HANDLE);
+        pipeline_info.setBasePipelineIndex(-1);
+
+        auto res = vo_.logical_device.createGraphicsPipeline(VK_NULL_HANDLE, pipeline_info);
+        if (res.result != vk::Result::eSuccess)
+            throw std::runtime_error("Cannot create pipeline.");
+        vo_.pipeline = res.value;
+
+
         vo_.logical_device.destroyShaderModule(vertex_module);
         vo_.logical_device.destroyShaderModule(fragment_module);
     }
@@ -308,10 +281,14 @@ namespace mvk {
         if (ENABLE_VALIDATION_LAYERS)
             vo_.instance.destroyDebugUtilsMessengerEXT(vo_.debug_messenger, nullptr, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
         
+        vo_.logical_device.destroyPipeline(vo_.pipeline);
         vo_.logical_device.destroyPipelineLayout(vo_.layout);
+        vo_.logical_device.destroyRenderPass(vo_.render_pass);
+
         for (auto image_view : vo_.image_views) {
             vo_.logical_device.destroyImageView(image_view);
         }
+
         vo_.logical_device.destroySwapchainKHR(vo_.swapchain);
         vo_.logical_device.destroy();
         vo_.instance.destroySurfaceKHR(vo_.surface);

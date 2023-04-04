@@ -26,6 +26,7 @@ set(SOURCES
     VulkanValidator/VulkanValidator.cpp
     QueueFamilies/QueueFamilies.cpp  	   
     SwapChainDetails/SwapChainDetails.cpp 
+    GraphicsSettings/GraphicsSettings.cpp
     DisplayWindow/DisplayWindow.cpp
 )
 
