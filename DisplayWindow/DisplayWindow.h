@@ -5,8 +5,6 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
 
-#include <chrono>
-
 #include "../VulkanManager/VulkanManager.h"
 
 constexpr int WIDTH = 1280;
