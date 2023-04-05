@@ -211,12 +211,22 @@ namespace mvk {
         subpass.setColorAttachmentCount(1);
         subpass.setPColorAttachments(&color_attachment_ref);
 
+        vk::SubpassDependency dependency{};
+        dependency.setSrcSubpass(VK_SUBPASS_EXTERNAL);
+        dependency.setDstSubpass(0);
+        dependency.setSrcAccessMask(vk::AccessFlagBits::eNone);
+        dependency.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
+        dependency.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+        dependency.setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+
         vk::RenderPassCreateInfo render_pass_info{};
         render_pass_info.sType = vk::StructureType::eRenderPassCreateInfo;
         render_pass_info.setAttachmentCount(1);
         render_pass_info.setPAttachments(&color_attachment);
         render_pass_info.setSubpassCount(1);
         render_pass_info.setPSubpasses(&subpass);
+        render_pass_info.setDependencyCount(1);
+        render_pass_info.setPDependencies(&dependency);
 
         vo_.render_pass = vo_.logical_device.createRenderPass(render_pass_info);
     }
@@ -312,10 +322,78 @@ namespace mvk {
         cmd_buff_ainfo.setLevel(vk::CommandBufferLevel::ePrimary);
         cmd_buff_ainfo.setCommandBufferCount(1);
 
-        vo_.command_buffer = vo_.logical_device.allocateCommandBuffers(cmd_buff_ainfo)[0];
+        if (vo_.logical_device.allocateCommandBuffers(&cmd_buff_ainfo, &vo_.command_buffer) != vk::Result::eSuccess)
+            throw std::runtime_error("Failed to allocate command buffer.");
+    }
+
+    void VulkanManager::CreateSyncObjects() {
+        vk::SemaphoreCreateInfo sem_info{};
+        sem_info.sType = vk::StructureType::eSemaphoreCreateInfo;
+
+        vk::FenceCreateInfo fence_info{};
+        fence_info.sType = vk::StructureType::eFenceCreateInfo;
+        fence_info.setFlags(vk::FenceCreateFlagBits::eSignaled);
+
+        vo_.image_available_sem = vo_.logical_device.createSemaphore(sem_info);
+        vo_.render_finished_sem = vo_.logical_device.createSemaphore(sem_info);
+        vo_.in_flight_fence = vo_.logical_device.createFence(fence_info);
+    }
+
+    void VulkanManager::DrawFrame() {
+        if (vo_.logical_device.waitForFences(1, &vo_.in_flight_fence, VK_TRUE, UINT64_MAX) != vk::Result::eSuccess)
+            throw std::runtime_error("Cannot wait for fences.");
+        
+        if (vo_.logical_device.resetFences(1, &vo_.in_flight_fence) != vk::Result::eSuccess)
+            throw std::runtime_error("Cannot reset fences.");
+
+        auto res = vo_.logical_device.acquireNextImageKHR(vo_.swapchain, UINT64_MAX, vo_.image_available_sem);
+        if (res.result != vk::Result::eSuccess)
+            throw std::runtime_error("Cannot acquire next image.");
+        uint32_t image_index = res.value;
+
+        vo_.command_buffer.reset();
+        RecordCommandBuffer(vo_.command_buffer, res.value);
+
+        vk::SubmitInfo submit_info{};
+        submit_info.sType = vk::StructureType::eSubmitInfo;
+
+        vk::Semaphore waiting_sems[] = { vo_.image_available_sem };
+        submit_info.setWaitSemaphoreCount(1);
+        submit_info.setPWaitSemaphores(waiting_sems);
+
+        vk::PipelineStageFlags waiting_stages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+        submit_info.setPWaitDstStageMask(waiting_stages);
+
+        submit_info.setCommandBufferCount(1);
+        submit_info.setPCommandBuffers(&vo_.command_buffer);
+
+        vk::Semaphore signal_sems[] = { vo_.render_finished_sem };
+        submit_info.setSignalSemaphoreCount(1);
+        submit_info.setPSignalSemaphores(signal_sems);
+
+        if (vo_.graphics_queue.submit(1, &submit_info, vo_.in_flight_fence) != vk::Result::eSuccess)
+            throw std::runtime_error("Failed to submit drawing.");
+        
+        vk::PresentInfoKHR present{};
+        present.sType = vk::StructureType::ePresentInfoKHR;
+        present.setWaitSemaphoreCount(1);
+        present.setPWaitSemaphores(signal_sems);
+
+        vk::SwapchainKHR swap_chains[] = { vo_.swapchain };
+        present.setSwapchainCount(1);
+        present.setPSwapchains(swap_chains);
+        present.setPImageIndices(&image_index);
+        present.setPResults(nullptr);
+
+        if (vo_.present_queue.presentKHR(present) != vk::Result::eSuccess)
+            throw std::runtime_error("Failed to present image.");
     }
 
     void VulkanManager::DestroyEverything() {
+        vo_.logical_device.destroySemaphore(vo_.image_available_sem);
+        vo_.logical_device.destroySemaphore(vo_.render_finished_sem);
+        vo_.logical_device.destroyFence(vo_.in_flight_fence);
+
         vo_.logical_device.destroyCommandPool(vo_.command_pool);
 
         for (auto framebuffer : vo_.framebuffers)
@@ -360,8 +438,10 @@ namespace mvk {
         vk::CommandBufferBeginInfo begin_info{};
         begin_info.sType = vk::StructureType::eCommandBufferBeginInfo;
         begin_info.setPInheritanceInfo(nullptr);
-        
-        command_buffer.begin(begin_info);
+
+        if (command_buffer.begin(&begin_info) != vk::Result::eSuccess) {
+            std::runtime_error("Failed to begin recording command buffer.");
+        }
 
         vk::RenderPassBeginInfo render_pass_begin_info{};
         render_pass_begin_info.sType = vk::StructureType::eRenderPassBeginInfo;
@@ -424,5 +504,8 @@ namespace mvk {
             //     std::cout << "\t\t" << queue.queueCount << "\n";
         }
         std::cout << "\u001b[0m";
+    }
+    vk::Device& VulkanManager::get_logical_device() {
+        return vo_.logical_device;
     }
 }

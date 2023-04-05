@@ -9,14 +9,15 @@ namespace mvk {
     }
 
     void DisplayWindow::InitWindow() {
-        if (glfwInit() == GLFW_FALSE) throw std::runtime_error("Cannot initialize GLFW.");
+        if (glfwInit() == GLFW_FALSE)
+            throw std::runtime_error("Cannot initialize GLFW.");
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+        
         window_ = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan window", nullptr, nullptr);
-        if (window_ == GLFW_FALSE) throw std::runtime_error("Cannot create window.");
-
-        // glfwMakeContextCurrent(window_);
+        if (window_ == GLFW_FALSE)
+            throw std::runtime_error("Cannot create window.");
     }
 
     void DisplayWindow::InitVulkan() {
@@ -31,26 +32,23 @@ namespace mvk {
         VulkanWrapped.CreateGraphicsPipeline();
         VulkanWrapped.CreateFramebuffers();
         VulkanWrapped.CreateCommandPool();
+        VulkanWrapped.CreateCommandBuffer();
+        VulkanWrapped.CreateSyncObjects();
 
         // VulkanWrapped.PrintLoadedData();
     }
 
     void DisplayWindow::MainLoop() {
         while(!glfwWindowShouldClose(window_)) {
-            // glClear(GL_COLOR_BUFFER_BIT);
-
-            // srand(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-            // glClearColor(((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)), ((double) rand() / (RAND_MAX)));
-
-            // glfwSwapBuffers(window_);
             glfwPollEvents();
-        }        
+            VulkanWrapped.DrawFrame();
+        }
+        VulkanWrapped.get_logical_device().waitIdle();
     }
 
     void DisplayWindow::CleanUp() {
         VulkanWrapped.DestroyEverything();
         glfwDestroyWindow(window_);
-
         glfwTerminate();
     }
 }

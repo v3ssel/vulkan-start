@@ -34,6 +34,10 @@ namespace mvk {
         vk::CommandPool command_pool;
         vk::CommandBuffer command_buffer;
 
+        vk::Semaphore image_available_sem;
+        vk::Semaphore render_finished_sem;
+        vk::Fence in_flight_fence;
+
         VulkanValidator validator;
     };
 }

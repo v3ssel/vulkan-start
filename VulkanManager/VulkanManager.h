@@ -26,7 +26,7 @@ namespace mvk {
     };
 
     const std::vector<const char*> DEVICE_REQUIRED_EXTENSIONS = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
     };
 
     class VulkanManager {
@@ -43,9 +43,14 @@ namespace mvk {
         void CreateFramebuffers();
         void CreateCommandPool();
         void CreateCommandBuffer();
+        void CreateSyncObjects();
+
+        void DrawFrame();
 
         void DestroyEverything();
         void PrintLoadedData();
+
+        vk::Device& get_logical_device();
          
        private:
         void FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info);
