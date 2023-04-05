@@ -9,8 +9,8 @@
 
 #include "../VulkanManager/VulkanManager.h"
 
-constexpr int WIDTH = 800;
-constexpr int HEIGHT = 600;
+constexpr int WIDTH = 1280;
+constexpr int HEIGHT = 720;
 
 namespace mvk {
     class DisplayWindow {

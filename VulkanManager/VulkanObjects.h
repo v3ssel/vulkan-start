@@ -32,11 +32,11 @@ namespace mvk {
         std::vector<vk::Framebuffer> framebuffers;
 
         vk::CommandPool command_pool;
-        vk::CommandBuffer command_buffer;
+        std::vector<vk::CommandBuffer> command_buffers;
 
-        vk::Semaphore image_available_sem;
-        vk::Semaphore render_finished_sem;
-        vk::Fence in_flight_fence;
+        std::vector<vk::Semaphore> image_available_sems;
+        std::vector<vk::Semaphore> render_finished_sems;
+        std::vector<vk::Fence> in_flight_fences;
 
         VulkanValidator validator;
     };

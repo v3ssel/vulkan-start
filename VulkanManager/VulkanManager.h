@@ -23,11 +23,14 @@ namespace mvk {
 
     const std::vector<const char*> VALIDATION_LAYERS = {
         "VK_LAYER_KHRONOS_validation",
+        "VK_LAYER_LUNARG_monitor"
     };
 
     const std::vector<const char*> DEVICE_REQUIRED_EXTENSIONS = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
     };
+
+    constexpr uint32_t MAX_FRAMES = 2;
 
     class VulkanManager {
        public:
@@ -42,7 +45,7 @@ namespace mvk {
         void CreateGraphicsPipeline();
         void CreateFramebuffers();
         void CreateCommandPool();
-        void CreateCommandBuffer();
+        void CreateCommandBuffers();
         void CreateSyncObjects();
 
         void DrawFrame();
@@ -57,6 +60,7 @@ namespace mvk {
         void RecordCommandBuffer(vk::CommandBuffer, uint32_t image_index);
         
         mvk::VulkanObjects vo_;
+        uint32_t current_frame_ = 0;
     };
 }
 

@@ -54,6 +54,7 @@ vk::PipelineRasterizationStateCreateInfo mvk::GraphicsSettings::CreateRasterizer
     rasterizer_info.setRasterizerDiscardEnable(VK_FALSE);
     rasterizer_info.setPolygonMode(vk::PolygonMode::eFill);
     rasterizer_info.setLineWidth(1.0f);
+    rasterizer_info.setPolygonMode(vk::PolygonMode::eFill);
     rasterizer_info.setCullMode(vk::CullModeFlagBits::eBack);
     rasterizer_info.setFrontFace(vk::FrontFace::eClockwise);
     rasterizer_info.setDepthBiasEnable(VK_FALSE);

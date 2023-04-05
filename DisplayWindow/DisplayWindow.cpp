@@ -32,7 +32,7 @@ namespace mvk {
         VulkanWrapped.CreateGraphicsPipeline();
         VulkanWrapped.CreateFramebuffers();
         VulkanWrapped.CreateCommandPool();
-        VulkanWrapped.CreateCommandBuffer();
+        VulkanWrapped.CreateCommandBuffers();
         VulkanWrapped.CreateSyncObjects();
 
         // VulkanWrapped.PrintLoadedData();
