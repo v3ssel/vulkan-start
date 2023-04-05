@@ -14,19 +14,20 @@ constexpr int HEIGHT = 720;
 
 namespace mvk {
     class DisplayWindow {
-        public:
-         void Run();
-        
-        private:
-         void InitWindow();
-         void InitVulkan();
-         void MainLoop();
-         void CleanUp();
+       public:
+        void Run();
+        mvk::VulkanManager& get_manager();
 
-         void CreateSurface();
+       private:
+        void InitWindow();
+        void InitVulkan();
+        void MainLoop();
+        void CleanUp();
 
-         GLFWwindow* window_;
-         mvk::VulkanManager VulkanWrapped;
+        void CreateSurface();
+
+        GLFWwindow* window_;
+        mvk::VulkanManager VulkanWrapped; 
     };
 }
 

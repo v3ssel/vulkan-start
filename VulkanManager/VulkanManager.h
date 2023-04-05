@@ -39,7 +39,8 @@ namespace mvk {
         void CreateSurface(GLFWwindow *window);
         void TakeVideocard();
         void CreateLogicalDevice();
-        void CreateSwapChain(GLFWwindow *window);
+        void CreateSwapChain(vk::SwapchainKHR *prev = nullptr);
+        void RecreateSwapChain();
         void CreateImageView();
         void CreateRenderPass();
         void CreateGraphicsPipeline();
@@ -51,16 +52,20 @@ namespace mvk {
         void DrawFrame();
 
         void DestroyEverything();
+        void DestroySwapchain();
         void PrintLoadedData();
 
         vk::Device& get_logical_device();
+        void set_window_resize();
          
        private:
         void FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info);
         void RecordCommandBuffer(vk::CommandBuffer, uint32_t image_index);
         
+        GLFWwindow *window_;
         mvk::VulkanObjects vo_;
         uint32_t current_frame_ = 0;
+        bool window_resized_ = false;
     };
 }
 

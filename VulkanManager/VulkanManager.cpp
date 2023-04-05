@@ -68,6 +68,7 @@ namespace mvk {
     }
 
     void VulkanManager::CreateSurface(GLFWwindow *window) {
+        window_ = window;
         VkSurfaceKHR surface;
         if (glfwCreateWindowSurface(vo_.instance, window, nullptr, &surface) != VK_SUCCESS)
             throw std::runtime_error("Failed to create window surface.");
@@ -122,12 +123,12 @@ namespace mvk {
         vo_.present_queue = vo_.logical_device.getQueue(indices.present_family_.value(), 0);
     }
 
-    void VulkanManager::CreateSwapChain(GLFWwindow *window) {
+    void VulkanManager::CreateSwapChain(vk::SwapchainKHR *prev) {
         SwapChainDetails sc_details(vo_.physical_device, vo_.surface);
 
         vk::SurfaceFormatKHR format = sc_details.ChooseSwapSurfaceFormat();
         vk::PresentModeKHR present_mode = sc_details.ChooseSwapPresentMode();
-        vk::Extent2D extent = sc_details.ChooseSwapExtent(window);
+        vk::Extent2D extent = sc_details.ChooseSwapExtent(window_);
 
         uint32_t image_count = sc_details.capabilities_.minImageCount + 1;
         if (sc_details.capabilities_.maxImageCount > 0 &&
@@ -160,13 +161,30 @@ namespace mvk {
         sc_info.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque);
         sc_info.setPresentMode(present_mode);
         sc_info.setClipped(VK_TRUE);
-        sc_info.setOldSwapchain(VK_NULL_HANDLE);
+        // sc_info.setOldSwapchain(vo_.swapchain == vk::SwapchainKHR() ? VK_NULL_HANDLE : vo_.swapchain);
 
         vo_.swapchain = vo_.logical_device.createSwapchainKHR(sc_info);
 
         vo_.swapchain_images = vo_.logical_device.getSwapchainImagesKHR(vo_.swapchain);
         vo_.sc_format = format.format;
         vo_.sc_extent = extent;
+    }
+
+    void VulkanManager::RecreateSwapChain() {
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(window_, &width, &height);
+        while (width == 0 || height == 0) {
+            glfwGetFramebufferSize(window_, &width, &height);
+            glfwWaitEvents();
+        }
+
+        vo_.logical_device.waitIdle();
+
+        DestroySwapchain();
+
+        CreateSwapChain();
+        CreateImageView();
+        CreateFramebuffers();
     }
 
     void VulkanManager::CreateImageView() {
@@ -352,16 +370,22 @@ namespace mvk {
         if (vo_.logical_device.waitForFences(1, &vo_.in_flight_fences[current_frame_], VK_TRUE, UINT64_MAX) != vk::Result::eSuccess)
             throw std::runtime_error("Cannot wait for fences.");
         
+        vk::ResultValue<uint32_t> res = vo_.logical_device.acquireNextImageKHR(vo_.swapchain, UINT64_MAX, vo_.image_available_sems[current_frame_]);
+        
+        if (res.result == vk::Result::eErrorOutOfDateKHR) {
+            window_resized_ = false;
+            RecreateSwapChain();
+            return;
+        } else if (res.result != vk::Result::eSuccess && res.result != vk::Result::eSuboptimalKHR) {
+            throw std::runtime_error("Cannot acquire next image.");
+        }
+
         if (vo_.logical_device.resetFences(1, &vo_.in_flight_fences[current_frame_]) != vk::Result::eSuccess)
             throw std::runtime_error("Cannot reset fences.");
 
-        auto res = vo_.logical_device.acquireNextImageKHR(vo_.swapchain, UINT64_MAX, vo_.image_available_sems[current_frame_]);
-        if (res.result != vk::Result::eSuccess)
-            throw std::runtime_error("Cannot acquire next image.");
-        uint32_t image_index = res.value;
-
         vo_.command_buffers[current_frame_].reset();
         RecordCommandBuffer(vo_.command_buffers[current_frame_], res.value);
+
 
         vk::SubmitInfo submit_info{};
         submit_info.sType = vk::StructureType::eSubmitInfo;
@@ -379,6 +403,7 @@ namespace mvk {
         if (vo_.graphics_queue.submit(1, &submit_info, vo_.in_flight_fences[current_frame_]) != vk::Result::eSuccess)
             throw std::runtime_error("Failed to submit drawing.");
         
+        
         vk::PresentInfoKHR present{};
         present.sType = vk::StructureType::ePresentInfoKHR;
         present.setWaitSemaphoreCount(1);
@@ -386,16 +411,23 @@ namespace mvk {
         vk::SwapchainKHR swap_chains[] = { vo_.swapchain };
         present.setSwapchainCount(1);
         present.setPSwapchains(swap_chains);
-        present.setPImageIndices(&image_index);
+        present.setPImageIndices(&res.value);
         present.setPResults(nullptr);
 
-        if (vo_.present_queue.presentKHR(present) != vk::Result::eSuccess)
+        vk::Result present_res = vo_.present_queue.presentKHR(&present);
+        if (present_res == vk::Result::eErrorOutOfDateKHR || present_res == vk::Result::eSuboptimalKHR || window_resized_) {
+            window_resized_ = false;
+            RecreateSwapChain();
+        } else if (res.result != vk::Result::eSuccess) {
             throw std::runtime_error("Failed to present image.");
+        }
         
         current_frame_ = (current_frame_ + 1) % MAX_FRAMES;
     }
 
     void VulkanManager::DestroyEverything() {
+        DestroySwapchain();
+
         for (size_t i = 0; i < MAX_FRAMES; ++i) {
             vo_.logical_device.destroySemaphore(vo_.image_available_sems[i]);
             vo_.logical_device.destroySemaphore(vo_.render_finished_sems[i]);
@@ -403,24 +435,26 @@ namespace mvk {
         }
 
         vo_.logical_device.destroyCommandPool(vo_.command_pool);
-
-        for (auto framebuffer : vo_.framebuffers)
-            vo_.logical_device.destroyFramebuffer(framebuffer);
-
         vo_.logical_device.destroyPipeline(vo_.pipeline);
         vo_.logical_device.destroyPipelineLayout(vo_.layout);
         vo_.logical_device.destroyRenderPass(vo_.render_pass);
 
-        for (auto image_view : vo_.image_views)
-            vo_.logical_device.destroyImageView(image_view);
-
         if (ENABLE_VALIDATION_LAYERS)
             vo_.instance.destroyDebugUtilsMessengerEXT(vo_.debug_messenger, nullptr, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
 
-        vo_.logical_device.destroySwapchainKHR(vo_.swapchain);
         vo_.logical_device.destroy();
         vo_.instance.destroySurfaceKHR(vo_.surface);
         vo_.instance.destroy();
+    }
+
+    void VulkanManager::DestroySwapchain() {
+        for (auto framebuffer : vo_.framebuffers)
+            vo_.logical_device.destroyFramebuffer(framebuffer);
+
+        for (auto image_view : vo_.image_views)
+            vo_.logical_device.destroyImageView(image_view);
+
+        vo_.logical_device.destroySwapchainKHR(vo_.swapchain);
     }
 
     void VulkanManager::FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT& debug_info) {
@@ -513,7 +547,12 @@ namespace mvk {
         }
         std::cout << "\u001b[0m";
     }
+
     vk::Device& VulkanManager::get_logical_device() {
         return vo_.logical_device;
+    }
+    
+    void VulkanManager::set_window_resize() {
+        window_resized_ = true;
     }
 }
