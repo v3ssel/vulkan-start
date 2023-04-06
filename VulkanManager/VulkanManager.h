@@ -10,6 +10,9 @@
 #include <vector>
 #include <set>
 
+#include <chrono>
+#include <random>
+
 #include "VulkanObjects.h"
 #include "../Shaders/ShadersHelper.h"
 #include "../GraphicsSettings/GraphicsSettings.h"
@@ -28,6 +31,7 @@ namespace mvk {
 
     const std::vector<const char*> DEVICE_REQUIRED_EXTENSIONS = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        "VK_EXT_extended_dynamic_state3"
     };
 
     constexpr uint32_t MAX_FRAMES = 2;
@@ -64,6 +68,7 @@ namespace mvk {
         
         GLFWwindow *window_;
         mvk::VulkanObjects vo_;
+        float r = 0.0f, g = 0.0f, b = 0.0f;
         uint32_t current_frame_ = 0;
         bool window_resized_ = false;
     };

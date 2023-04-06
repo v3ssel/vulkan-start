@@ -113,10 +113,18 @@ namespace mvk {
         logical_device_info.setEnabledExtensionCount(static_cast<uint32_t>(DEVICE_REQUIRED_EXTENSIONS.size()));
         logical_device_info.setPpEnabledExtensionNames(DEVICE_REQUIRED_EXTENSIONS.data());
 
+
         vk::PhysicalDeviceFeatures features{};
         features.setFillModeNonSolid(VK_TRUE);
         // features.setLogicOp(VK_TRUE);
+        // features.setSampleRateShading(VK_TRUE);
+        // features.setAlphaToOne(VK_TRUE);
         logical_device_info.setPEnabledFeatures(&features);
+
+        vk::PhysicalDeviceExtendedDynamicState3FeaturesEXT extended_features{};
+        extended_features.sType = vk::StructureType::ePhysicalDeviceExtendedDynamicState3FeaturesEXT;
+        extended_features.setExtendedDynamicState3PolygonMode(VK_TRUE);
+        logical_device_info.setPNext(&extended_features);
 
         vo_.logical_device = vo_.physical_device.createDevice(logical_device_info);
         vo_.graphics_queue = vo_.logical_device.getQueue(indices.graphics_family_.value(), 0);
@@ -161,7 +169,7 @@ namespace mvk {
         sc_info.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque);
         sc_info.setPresentMode(present_mode);
         sc_info.setClipped(VK_TRUE);
-        // sc_info.setOldSwapchain(vo_.swapchain == vk::SwapchainKHR() ? VK_NULL_HANDLE : vo_.swapchain);
+        sc_info.setOldSwapchain(prev == nullptr ? VK_NULL_HANDLE : *prev);
 
         vo_.swapchain = vo_.logical_device.createSwapchainKHR(sc_info);
 
@@ -181,8 +189,8 @@ namespace mvk {
         vo_.logical_device.waitIdle();
 
         DestroySwapchain();
-
         CreateSwapChain();
+
         CreateImageView();
         CreateFramebuffers();
     }
@@ -367,6 +375,7 @@ namespace mvk {
     }
 
     void VulkanManager::DrawFrame() {
+
         if (vo_.logical_device.waitForFences(1, &vo_.in_flight_fences[current_frame_], VK_TRUE, UINT64_MAX) != vk::Result::eSuccess)
             throw std::runtime_error("Cannot wait for fences.");
         
@@ -423,6 +432,21 @@ namespace mvk {
         }
         
         current_frame_ = (current_frame_ + 1) % MAX_FRAMES;
+        
+        if (b < 0.6f && g <= 0.6f)
+            b += 0.01;
+        
+        if (b >= 0.6f && r < 0.6f && g <= 0.6f)
+            r += 0.01;
+
+        if (r >= 0.6f && g <= 0.6f)
+            g += 0.01;
+
+        if (g > 0.6)
+            r -= 0.01f, b -= 0.01f;
+        
+        if (g > 0.6 && (r <= 0.0f || b <= 0.0f))
+            g -= 0.01f;
     }
 
     void VulkanManager::DestroyEverything() {
@@ -484,18 +508,23 @@ namespace mvk {
         if (command_buffer.begin(&begin_info) != vk::Result::eSuccess) {
             std::runtime_error("Failed to begin recording command buffer.");
         }
+        
 
         vk::RenderPassBeginInfo render_pass_begin_info{};
         render_pass_begin_info.sType = vk::StructureType::eRenderPassBeginInfo;
         render_pass_begin_info.setRenderPass(vo_.render_pass);
         render_pass_begin_info.setFramebuffer(vo_.framebuffers[image_index]);
         render_pass_begin_info.setRenderArea(vk::Rect2D({0, 0}, vo_.sc_extent));
+        
+        // vk::ClearValue clear_color(vk::ClearColorValue(0.0f, 0.0f, 0.0f, 0.0f));
+        vk::ClearValue clear_color(vk::ClearColorValue(r, g, b, 0.0f));
 
-        vk::ClearValue clear_color(vk::ClearColorValue(0.0f, 0.0f, 0.0f, 0.0f));
         render_pass_begin_info.setPClearValues(&clear_color);
         render_pass_begin_info.setClearValueCount(1);
         command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vo_.pipeline);
+        
+        command_buffer.setPolygonModeEXT(vk::PolygonMode::eLine, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
 
         vk::Viewport viewport{};
         viewport.setX(0.0f);
@@ -512,6 +541,9 @@ namespace mvk {
         command_buffer.setScissor(0, 1, &scissor);
 
         command_buffer.draw(3, 1, 0, 0);
+
+        // command_buffer.setPolygonModeEXT(vk::PolygonMode::eLine, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
+        // command_buffer.draw(3, 1, 0, 0);
 
         command_buffer.endRenderPass();
 
@@ -534,8 +566,8 @@ namespace mvk {
         std::cout << "DEVICES:\n";
         for (auto &device : devices) {
             std::cout << "\t" << device.getProperties().deviceName << "\n\tEXTENSIONS:\n";
-            // for (auto& device_ext : device.enumerateDeviceExtensionProperties())
-            //     std::cout << "\t\t" << device_ext.extensionName << "\n";
+            for (auto& device_ext : device.enumerateDeviceExtensionProperties())
+                std::cout << "\t\t" << device_ext.extensionName << "\n";
 
             // std::cout << "\t" << "LAYERS:\n";
             // for (auto& layer : device.enumerateDeviceLayerProperties())

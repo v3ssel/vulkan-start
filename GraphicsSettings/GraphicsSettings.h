@@ -10,7 +10,8 @@
 namespace mvk {
     const std::vector<vk::DynamicState> DYNAMIC_STATES = {
         vk::DynamicState::eViewport,
-        vk::DynamicState::eScissor
+        vk::DynamicState::eScissor,
+        vk::DynamicState::ePolygonModeEXT
     };
 
     class GraphicsSettings {
