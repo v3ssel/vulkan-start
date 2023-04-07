@@ -8,13 +8,13 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     void* user_data) {
 
     if (severity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-        std::cout << "\u001b[31mERROR: " << callback_data->pMessage << '\n';
+        std::cout << "\u001b[31mERROR: " << callback_data->pMessage << "\u001b[0m\n";
     else if (severity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-        std::cout << "\u001b[33mWARNING: " << callback_data->pMessage << '\n';
+        std::cout << "\u001b[33mWARNING: " << callback_data->pMessage << "\u001b[0m\n";
     else if (severity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
-        std::cout << "\u001b[32mINFO: " << callback_data->pMessage << '\n';
+        std::cout << "\u001b[32mINFO: " << callback_data->pMessage << "\u001b[0m\n";
     else
-        std::cout << "\u001b[0mVERBOSE: " << callback_data->pMessage << '\n';
+        std::cout << "\u001b[0mVERBOSE: " << callback_data->pMessage << "\u001b[0m\n";
     
     return VK_FALSE;
 }
@@ -131,7 +131,7 @@ namespace mvk {
         vo_.present_queue = vo_.logical_device.getQueue(indices.present_family_.value(), 0);
     }
 
-    void VulkanManager::CreateSwapChain(vk::SwapchainKHR *prev) {
+    void VulkanManager::CreateSwapChain(bool prev) {
         SwapChainDetails sc_details(vo_.physical_device, vo_.surface);
 
         vk::SurfaceFormatKHR format = sc_details.ChooseSwapSurfaceFormat();
@@ -169,13 +169,17 @@ namespace mvk {
         sc_info.setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque);
         sc_info.setPresentMode(present_mode);
         sc_info.setClipped(VK_TRUE);
-        sc_info.setOldSwapchain(prev == nullptr ? VK_NULL_HANDLE : *prev);
+
+        vk::SwapchainKHR old_sc = vo_.swapchain;
+        sc_info.setOldSwapchain(prev ? old_sc : VK_NULL_HANDLE);
 
         vo_.swapchain = vo_.logical_device.createSwapchainKHR(sc_info);
-
         vo_.swapchain_images = vo_.logical_device.getSwapchainImagesKHR(vo_.swapchain);
         vo_.sc_format = format.format;
         vo_.sc_extent = extent;
+
+        if (prev)
+            vo_.logical_device.destroySwapchainKHR(old_sc);
     }
 
     void VulkanManager::RecreateSwapChain() {
@@ -188,9 +192,9 @@ namespace mvk {
 
         vo_.logical_device.waitIdle();
 
-        DestroySwapchain();
-        CreateSwapChain();
+        DestroySwapchainImages();
 
+        CreateSwapChain(&vo_.swapchain);
         CreateImageView();
         CreateFramebuffers();
     }
@@ -433,24 +437,25 @@ namespace mvk {
         
         current_frame_ = (current_frame_ + 1) % MAX_FRAMES;
         
-        if (b < 0.6f && g <= 0.6f)
-            b += 0.01;
+        // if (b < 0.6f && g <= 0.6f)
+        //     b += 0.001;
         
-        if (b >= 0.6f && r < 0.6f && g <= 0.6f)
-            r += 0.01;
+        // if (b >= 0.6f && r < 0.6f && g <= 0.6f)
+        //     r += 0.001;
 
-        if (r >= 0.6f && g <= 0.6f)
-            g += 0.01;
+        // if (r >= 0.6f && g <= 0.6f)
+        //     g += 0.001;
 
-        if (g > 0.6)
-            r -= 0.01f, b -= 0.01f;
+        // if (g > 0.6)
+        //     r -= 0.001f, b -= 0.001f;
         
-        if (g > 0.6 && (r <= 0.0f || b <= 0.0f))
-            g -= 0.01f;
+        // if (g > 0.6 && (r <= 0.0f || b <= 0.0f))
+        //     g -= 0.001f;
     }
 
     void VulkanManager::DestroyEverything() {
-        DestroySwapchain();
+        DestroySwapchainImages();
+        vo_.logical_device.destroySwapchainKHR(vo_.swapchain);
 
         for (size_t i = 0; i < MAX_FRAMES; ++i) {
             vo_.logical_device.destroySemaphore(vo_.image_available_sems[i]);
@@ -471,14 +476,12 @@ namespace mvk {
         vo_.instance.destroy();
     }
 
-    void VulkanManager::DestroySwapchain() {
+    void VulkanManager::DestroySwapchainImages() {
         for (auto framebuffer : vo_.framebuffers)
             vo_.logical_device.destroyFramebuffer(framebuffer);
 
         for (auto image_view : vo_.image_views)
             vo_.logical_device.destroyImageView(image_view);
-
-        vo_.logical_device.destroySwapchainKHR(vo_.swapchain);
     }
 
     void VulkanManager::FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT& debug_info) {
@@ -524,7 +527,7 @@ namespace mvk {
         command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
         command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vo_.pipeline);
         
-        command_buffer.setPolygonModeEXT(vk::PolygonMode::eLine, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
+        command_buffer.setPolygonModeEXT(vk::PolygonMode::eFill, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
 
         vk::Viewport viewport{};
         viewport.setX(0.0f);

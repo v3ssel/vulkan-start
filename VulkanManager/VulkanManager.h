@@ -34,7 +34,7 @@ namespace mvk {
         "VK_EXT_extended_dynamic_state3"
     };
 
-    constexpr uint32_t MAX_FRAMES = 2;
+    constexpr uint32_t MAX_FRAMES = 60;
 
     class VulkanManager {
        public:
@@ -43,7 +43,7 @@ namespace mvk {
         void CreateSurface(GLFWwindow *window);
         void TakeVideocard();
         void CreateLogicalDevice();
-        void CreateSwapChain(vk::SwapchainKHR *prev = nullptr);
+        void CreateSwapChain(bool prev = false);
         void RecreateSwapChain();
         void CreateImageView();
         void CreateRenderPass();
@@ -56,7 +56,7 @@ namespace mvk {
         void DrawFrame();
 
         void DestroyEverything();
-        void DestroySwapchain();
+        void DestroySwapchainImages();
         void PrintLoadedData();
 
         vk::Device& get_logical_device();
