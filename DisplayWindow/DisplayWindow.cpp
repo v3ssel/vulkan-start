@@ -2,7 +2,7 @@
 
 static void FramebufferResizeCallback(GLFWwindow* window, int width, int height) {
     auto app = reinterpret_cast<mvk::DisplayWindow*>(glfwGetWindowUserPointer(window));
-    app->get_manager().set_window_resize();
+    app->SetResizeTrigger();
 }
 
 namespace mvk {
@@ -13,8 +13,8 @@ namespace mvk {
         CleanUp();      
     }
 
-    mvk::VulkanManager& DisplayWindow::get_manager() {
-        return VulkanWrapped;
+    void DisplayWindow::SetResizeTrigger() {
+        return screen.set_window_resize();
     }
 
     void DisplayWindow::InitWindow() {
@@ -33,33 +33,20 @@ namespace mvk {
     }
 
     void DisplayWindow::InitVulkan() {
-        VulkanWrapped.CreateInstance();
-        VulkanWrapped.SetupDebug();
-        VulkanWrapped.CreateSurface(window_);
-        VulkanWrapped.TakeVideocard();
-        VulkanWrapped.CreateLogicalDevice();
-        VulkanWrapped.CreateSwapChain();
-        VulkanWrapped.CreateImageView();
-        VulkanWrapped.CreateRenderPass();
-        VulkanWrapped.CreateGraphicsPipeline();
-        VulkanWrapped.CreateFramebuffers();
-        VulkanWrapped.CreateCommandPool();
-        VulkanWrapped.CreateCommandBuffers();
-        VulkanWrapped.CreateSyncObjects();
-
-        // VulkanWrapped.PrintLoadedData();
+        screen.Setup(window_);
+        // screen.PrintLoadedData();
     }
 
     void DisplayWindow::MainLoop() {
         while(!glfwWindowShouldClose(window_)) {
             glfwPollEvents();
-            VulkanWrapped.DrawFrame();
+            screen.DrawFrame();
         }
-        VulkanWrapped.get_logical_device().waitIdle();
+        screen.get_logical_device().waitIdle();
     }
 
     void DisplayWindow::CleanUp() {
-        VulkanWrapped.DestroyEverything();
+        screen.DestroyEverything();
         glfwDestroyWindow(window_);
         glfwTerminate();
     }

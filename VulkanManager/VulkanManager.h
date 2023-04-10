@@ -10,9 +10,6 @@
 #include <vector>
 #include <set>
 
-#include <chrono>
-#include <random>
-
 #include "VulkanObjects.h"
 #include "../Shaders/ShadersHelper.h"
 #include "../GraphicsSettings/GraphicsSettings.h"
@@ -34,10 +31,16 @@ namespace mvk {
         "VK_EXT_extended_dynamic_state3"
     };
 
-    constexpr uint32_t MAX_FRAMES = 60;
+    const std::vector<const char*> INSTANCE_REQUIRED_EXTENSIONS = {
+        "VK_KHR_get_physical_device_properties2"
+    };
+
+    constexpr uint32_t MAX_FRAMES = 2;
 
     class VulkanManager {
        public:
+        virtual ~VulkanManager() {}
+
         void CreateInstance();
         void SetupDebug();
         void CreateSurface(GLFWwindow *window);
@@ -53,24 +56,20 @@ namespace mvk {
         void CreateCommandBuffers();
         void CreateSyncObjects();
 
-        void DrawFrame();
-
         void DestroyEverything();
-        void DestroySwapchainImages();
-        void PrintLoadedData();
 
         vk::Device& get_logical_device();
-        void set_window_resize();
-         
+
+       protected: 
+        virtual void DrawFrame() {}
+        virtual void RecordCommandBuffer(vk::CommandBuffer, uint32_t image_index) {}
+
+        mvk::VulkanObjects vo_;
+       
        private:
         void FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info);
-        void RecordCommandBuffer(vk::CommandBuffer, uint32_t image_index);
-        
+        void DestroySwapchainImages();
         GLFWwindow *window_;
-        mvk::VulkanObjects vo_;
-        float r = 0.0f, g = 0.0f, b = 0.0f;
-        uint32_t current_frame_ = 0;
-        bool window_resized_ = false;
     };
 }
 

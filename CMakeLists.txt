@@ -22,7 +22,8 @@ target_link_libraries(shaders_lib PUBLIC
 
 set(SOURCES 
     main.cpp
-    VulkanManager/VulkanManager.cpp 	
+    VulkanManager/VulkanManager.cpp
+    Presenter/Presenter.cpp
     VulkanValidator/VulkanValidator.cpp
     QueueFamilies/QueueFamilies.cpp  	   
     SwapChainDetails/SwapChainDetails.cpp 

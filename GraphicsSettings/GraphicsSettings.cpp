@@ -28,6 +28,7 @@ vk::PipelineVertexInputStateCreateInfo mvk::GraphicsSettings::CreateVertexInput(
 
     return vertex_input_info;
 }
+
 vk::PipelineInputAssemblyStateCreateInfo mvk::GraphicsSettings::CreateInputAssembly() {
     vk::PipelineInputAssemblyStateCreateInfo input_assembly_info{};
     input_assembly_info.sType = vk::StructureType::ePipelineInputAssemblyStateCreateInfo;

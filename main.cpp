@@ -4,7 +4,6 @@
 
 #include <iostream>
 
-#include "VulkanManager/VulkanManager.h"
 #include "DisplayWindow/DisplayWindow.h"
 
 int main() {

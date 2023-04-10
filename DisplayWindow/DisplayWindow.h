@@ -5,9 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
 
-#include <chrono>
-
-#include "../VulkanManager/VulkanManager.h"
+#include "../Presenter/Presenter.h"
 
 constexpr int WIDTH = 1280;
 constexpr int HEIGHT = 720;
@@ -16,7 +14,7 @@ namespace mvk {
     class DisplayWindow {
        public:
         void Run();
-        mvk::VulkanManager& get_manager();
+        void SetResizeTrigger();
 
        private:
         void InitWindow();
@@ -24,10 +22,8 @@ namespace mvk {
         void MainLoop();
         void CleanUp();
 
-        void CreateSurface();
-
         GLFWwindow* window_;
-        mvk::VulkanManager VulkanWrapped; 
+        mvk::VKPresenter screen; 
     };
 }
 

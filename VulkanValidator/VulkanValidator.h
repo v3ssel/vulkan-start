@@ -12,8 +12,8 @@
 namespace mvk {
     class VulkanValidator {
        public:
-        void CheckRequestedExtensions(std::vector<const char*> requiement_extensions);
-        std::vector<const char*> GetRequirmentInstanceExtension(bool enable_validation_layers);
+        void CheckRequestedInstanceExtensions(std::vector<const char*> requiement_extensions);
+        std::vector<const char*> SetRequirmentInstanceExtension(bool enable_validation_layers, std::vector<const char*> instance_extensions);
         bool CheckValidationLayersSupport(std::vector<const char *> validation_layers);
         bool CheckVideocard(vk::PhysicalDevice device, vk::SurfaceKHR surface, std::vector<const char *> device_required_ext);
         bool CheckDeviceExtensions(vk::PhysicalDevice device, std::vector<const char *> device_required_ext);

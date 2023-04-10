@@ -1,7 +1,7 @@
 #include "VulkanValidator.h"
 
 namespace mvk {
-    void VulkanValidator::CheckRequestedExtensions(std::vector<const char *> requiement_extensions) {
+    void VulkanValidator::CheckRequestedInstanceExtensions(std::vector<const char *> requiement_extensions) {
         auto extensions = vk::enumerateInstanceExtensionProperties();
         uint32_t match_count = 0;
 
@@ -17,7 +17,7 @@ namespace mvk {
             throw std::runtime_error("Cannot find GLFWExtensions in InstanceExtentions.");
     }
 
-    std::vector<const char*> VulkanValidator::GetRequirmentInstanceExtension(bool enable_validation_layers) {
+    std::vector<const char*> VulkanValidator::SetRequirmentInstanceExtension(bool enable_validation_layers, std::vector<const char*> instance_extensions) {
         uint32_t glfwExtensionCount;
         const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
@@ -25,7 +25,10 @@ namespace mvk {
 
         if (enable_validation_layers) {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-            extensions.push_back("VK_KHR_get_physical_device_properties2");
+        }
+
+        for (auto &ext : extensions) {
+            extensions.push_back(ext);
         }
 
         return extensions;
