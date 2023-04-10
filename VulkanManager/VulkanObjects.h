@@ -1,5 +1,5 @@
-#ifndef VULKAN_OBJECTS
-#define VULKAN_OBJECTS
+#ifndef MVK_OBJECTS
+#define MVK_OBJECTS
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -42,4 +42,4 @@ namespace mvk {
     };
 }
 
-#endif // VULKAN_OBJECTS
+#endif  // MVK_OBJECTS

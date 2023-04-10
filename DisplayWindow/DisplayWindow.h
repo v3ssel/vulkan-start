@@ -1,14 +1,12 @@
-#ifndef DISPLAY_WINDOW
-#define DISPLAY_WINDOW
+#ifndef MVK_DISPLAY_WINDOW
+#define MVK_DISPLAY_WINDOW
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
 
 #include "../Presenter/Presenter.h"
-
-constexpr int WIDTH = 1280;
-constexpr int HEIGHT = 720;
+#include "../MVKConstants.h"
 
 namespace mvk {
     class DisplayWindow {
@@ -27,4 +25,4 @@ namespace mvk {
     };
 }
 
-#endif  // DISPLAY_WINDOW
+#endif  // MVK_DISPLAY_WINDOW

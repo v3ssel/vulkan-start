@@ -5,15 +5,10 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
 
+#include "../MVKConstants.h"
 #include "../Shaders/ShadersHelper.h"
 
 namespace mvk {
-    const std::vector<vk::DynamicState> DYNAMIC_STATES = {
-        vk::DynamicState::eViewport,
-        vk::DynamicState::eScissor,
-        vk::DynamicState::ePolygonModeEXT
-    };
-
     class GraphicsSettings {
        public:
         std::vector<vk::PipelineShaderStageCreateInfo> CreateShadersStages(std::vector<vk::ShaderModule> shaders);
@@ -28,4 +23,4 @@ namespace mvk {
     };
 }
 
-#endif // MVK_GRAPHICS_SETTINGS
+#endif  // MVK_GRAPHICS_SETTINGS

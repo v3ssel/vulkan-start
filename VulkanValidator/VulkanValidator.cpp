@@ -1,22 +1,6 @@
 #include "VulkanValidator.h"
 
 namespace mvk {
-    void VulkanValidator::CheckRequestedInstanceExtensions(std::vector<const char *> requiement_extensions) {
-        auto extensions = vk::enumerateInstanceExtensionProperties();
-        uint32_t match_count = 0;
-
-        for (size_t i = 0; i < requiement_extensions.size(); ++i) {
-            for (size_t j = 0; j < extensions.size(); ++j) {
-                if (!strcmp(extensions[j].extensionName, requiement_extensions[i])) {
-                    match_count++;
-                }
-            }
-        }
-        
-        if (match_count != requiement_extensions.size())
-            throw std::runtime_error("Cannot find GLFWExtensions in InstanceExtentions.");
-    }
-
     std::vector<const char*> VulkanValidator::SetRequirmentInstanceExtension(bool enable_validation_layers, std::vector<const char*> instance_extensions) {
         uint32_t glfwExtensionCount;
         const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -32,6 +16,22 @@ namespace mvk {
         }
 
         return extensions;
+    }
+
+    void VulkanValidator::CheckRequestedInstanceExtensions(std::vector<const char *> requiement_extensions) {
+        auto available_extensions = vk::enumerateInstanceExtensionProperties();
+        uint32_t match_count = 0;
+
+        for (auto &req_ext : requiement_extensions) {
+            for (auto &av_ext : available_extensions) {
+                if (!strcmp(req_ext, av_ext.extensionName)) {
+                    match_count++;
+                }
+            }
+        }
+        
+        if (match_count != requiement_extensions.size())
+            throw std::runtime_error("Cannot find GLFWExtensions in InstanceExtentions.");
     }
 
     bool VulkanValidator::CheckValidationLayersSupport(std::vector<const char *> validation_layers) {

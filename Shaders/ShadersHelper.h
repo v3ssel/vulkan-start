@@ -1,5 +1,5 @@
-#ifndef SHADERS_HELPER
-#define SHADERS_HELPER
+#ifndef MVK_SHADERS_HELPER
+#define MVK_SHADERS_HELPER
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -10,10 +10,9 @@
 #include <string>
 #include <fstream>
 
-namespace mvk {
-    const std::string VERTEX_SHADER_PATH = "C:\\Coding\\Projects\\VulkanTesting\\Shaders\\VertexShader.glsl";
-    const std::string FRAGMENT_SHADER_PATH = "C:\\Coding\\Projects\\VulkanTesting\\Shaders\\FragmentShader.glsl";
+#include "../MVKConstants.h"
 
+namespace mvk {
     class ShadersHelper {
        public:
         static std::string ReadFromFile(const std::string file_name);
@@ -23,4 +22,4 @@ namespace mvk {
 };
 }
 
-#endif // SHADERS_HELPER
+#endif  // MVK_SHADERS_HELPER

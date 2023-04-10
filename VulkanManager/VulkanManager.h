@@ -1,5 +1,5 @@
-#ifndef VULKAN_MANAGER
-#define VULKAN_MANAGER
+#ifndef MVK_MANAGER
+#define MVK_MANAGER
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -10,33 +10,13 @@
 #include <vector>
 #include <set>
 
+
+#include "../MVKConstants.h"
 #include "VulkanObjects.h"
 #include "../Shaders/ShadersHelper.h"
 #include "../GraphicsSettings/GraphicsSettings.h"
 
 namespace mvk {
-    #ifdef NDEBUG
-        constexpr bool ENABLE_VALIDATION_LAYERS = false;
-    #else
-        constexpr bool ENABLE_VALIDATION_LAYERS = true;
-    #endif
-
-    const std::vector<const char*> VALIDATION_LAYERS = {
-        "VK_LAYER_KHRONOS_validation",
-        "VK_LAYER_LUNARG_monitor"
-    };
-
-    const std::vector<const char*> DEVICE_REQUIRED_EXTENSIONS = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        "VK_EXT_extended_dynamic_state3"
-    };
-
-    const std::vector<const char*> INSTANCE_REQUIRED_EXTENSIONS = {
-        "VK_KHR_get_physical_device_properties2"
-    };
-
-    constexpr uint32_t MAX_FRAMES = 2;
-
     class VulkanManager {
        public:
         virtual ~VulkanManager() {}
@@ -73,4 +53,4 @@ namespace mvk {
     };
 }
 
-#endif  // VULKAN_MANAGER
+#endif  // MVK_MANAGER

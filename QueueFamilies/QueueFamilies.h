@@ -1,5 +1,5 @@
-#ifndef QUEUE_FAMILIES
-#define QUEUE_FAMILIES
+#ifndef MVK_QUEUE_FAMILIES
+#define MVK_QUEUE_FAMILIES
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -18,4 +18,4 @@ namespace mvk {
 };
 }
 
-#endif // QUEUE_FAMILIES
+#endif  // MVK_QUEUE_FAMILIES
