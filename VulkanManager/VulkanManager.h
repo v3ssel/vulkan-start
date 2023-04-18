@@ -33,8 +33,10 @@ namespace mvk {
         void CreateGraphicsPipeline();
         void CreateFramebuffers();
         void CreateCommandPool();
+        void CreateVertexBuffer();
         void CreateCommandBuffers();
         void CreateSyncObjects();
+        void CreateObject(std::vector<Vertex> vertices);
 
         void DestroyEverything();
 

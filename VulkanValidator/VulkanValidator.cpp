@@ -82,4 +82,17 @@ namespace mvk {
 
         return true;
     }
+    uint32_t VulkanValidator::ChooseDeviceMemoryType(uint32_t filter, vk::MemoryPropertyFlags mem_properties, vk::PhysicalDevice& physical_device) {
+        vk::PhysicalDeviceMemoryProperties physical_memory_props = physical_device.getMemoryProperties();
+
+        for (uint32_t i = 0; i < physical_memory_props.memoryTypeCount; i++) {
+            if (filter & (1 << i) &&
+               (physical_memory_props.memoryTypes[i].propertyFlags & mem_properties) == mem_properties)
+                return i;
+        }
+
+        throw std::runtime_error("Cannot find suitable memory type.");
+
+        return 0;
+    }
 }

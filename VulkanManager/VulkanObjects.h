@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "../VulkanValidator/VulkanValidator.h"
+#include "../ObjectLoader/ObjectLoader.h"
 
 namespace mvk {
     struct VulkanObjects {
@@ -39,6 +40,10 @@ namespace mvk {
         std::vector<vk::Fence> in_flight_fences;
 
         VulkanValidator validator;
+        
+        ObjectLoader loader;
+        vk::Buffer vertex_buffer;
+        vk::DeviceMemory vertex_buffer_memory;    
     };
 }
 

@@ -23,8 +23,14 @@ std::vector<vk::PipelineShaderStageCreateInfo> mvk::GraphicsSettings::CreateShad
 vk::PipelineVertexInputStateCreateInfo mvk::GraphicsSettings::CreateVertexInput() {
     vk::PipelineVertexInputStateCreateInfo vertex_input_info{};
     vertex_input_info.sType = vk::StructureType::ePipelineVertexInputStateCreateInfo;
-    vertex_input_info.setVertexBindingDescriptionCount(0);
-    vertex_input_info.setVertexAttributeDescriptionCount(0);
+
+    static auto binding_desc = ObjectLoader::GetVerticesBindingDescription();
+    vertex_input_info.setVertexBindingDescriptionCount(1);
+    vertex_input_info.setPVertexBindingDescriptions(&binding_desc);
+
+    static auto attribute_desc = ObjectLoader::GetVerticesAttributeDescription();
+    vertex_input_info.setVertexAttributeDescriptionCount(static_cast<uint32_t>(attribute_desc.size()));
+    vertex_input_info.setPVertexAttributeDescriptions(attribute_desc.data());
 
     return vertex_input_info;
 }
@@ -32,7 +38,6 @@ vk::PipelineVertexInputStateCreateInfo mvk::GraphicsSettings::CreateVertexInput(
 vk::PipelineInputAssemblyStateCreateInfo mvk::GraphicsSettings::CreateInputAssembly() {
     vk::PipelineInputAssemblyStateCreateInfo input_assembly_info{};
     input_assembly_info.sType = vk::StructureType::ePipelineInputAssemblyStateCreateInfo;
-    // DRAW TRIANGLES HERE
     input_assembly_info.setTopology(vk::PrimitiveTopology::eTriangleList);
     input_assembly_info.setPrimitiveRestartEnable(VK_FALSE);
 

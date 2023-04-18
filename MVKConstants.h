@@ -2,6 +2,7 @@
 #define MVK_CONSTANTS
 
 #include <vulkan/vulkan.hpp>
+#include "ObjectLoader/ObjectLoader.h"
 
 namespace mvk {
     constexpr int WIDTH = 1280;
@@ -11,7 +12,7 @@ namespace mvk {
         constexpr bool ENABLE_VALIDATION_LAYERS = false;
     #else
         constexpr bool ENABLE_VALIDATION_LAYERS = true;
-    #endif
+    #endif 
 
     const std::string VERTEX_SHADER_PATH = "C:\\Coding\\Projects\\VulkanTesting\\Shaders\\VertexShader.glsl";
     const std::string FRAGMENT_SHADER_PATH = "C:\\Coding\\Projects\\VulkanTesting\\Shaders\\FragmentShader.glsl";
@@ -37,6 +38,12 @@ namespace mvk {
     };
 
     constexpr uint32_t MAX_FRAMES = 2;
+
+    const std::vector<Vertex> VERTICES = {
+        {{ 0.0, -0.5, 0.0}, {1.0, 0.0, 0.0}},
+        {{ 0.5,  0.5, 0.0}, {0.0, 1.0, 0.0}},
+        {{-0.5,  0.5, 0.0}, {0.0, 0.0, 1.0}}
+    };
 }
 
 #endif  // MVK_CONSTANTS

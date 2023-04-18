@@ -18,6 +18,7 @@ namespace mvk {
         bool CheckValidationLayersSupport(std::vector<const char *> validation_layers);
         bool CheckVideocard(vk::PhysicalDevice device, vk::SurfaceKHR surface, std::vector<const char *> device_required_ext);
         bool CheckDeviceExtensions(vk::PhysicalDevice device, std::vector<const char *> device_required_ext);
+        uint32_t ChooseDeviceMemoryType(uint32_t filter, vk::MemoryPropertyFlags mem_properties, vk::PhysicalDevice& physical_device);
     };
 }
 

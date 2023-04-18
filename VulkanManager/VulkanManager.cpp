@@ -344,6 +344,37 @@ namespace mvk {
         vo_.command_pool = vo_.logical_device.createCommandPool(cmd_pool_info);
     }
 
+    void VulkanManager::CreateVertexBuffer() {
+        vk::BufferCreateInfo buffer_info{};
+        buffer_info.sType = vk::StructureType::eBufferCreateInfo;
+        buffer_info.setSize(vk::DeviceSize(sizeof(VERTICES[0]) * VERTICES.size()));
+        buffer_info.setUsage(vk::BufferUsageFlagBits::eVertexBuffer);
+        buffer_info.setSharingMode(vk::SharingMode::eExclusive);
+        
+        vo_.vertex_buffer = vo_.logical_device.createBuffer(buffer_info);
+
+        vk::MemoryRequirements mem_reqs = vo_.logical_device.getBufferMemoryRequirements(vo_.vertex_buffer);
+        
+        vk::MemoryAllocateInfo alloc_info{};
+        alloc_info.sType = vk::StructureType::eMemoryAllocateInfo;
+        alloc_info.setAllocationSize(mem_reqs.size);
+        alloc_info.setMemoryTypeIndex(
+            vo_.validator.ChooseDeviceMemoryType(
+                mem_reqs.memoryTypeBits,
+                vk::MemoryPropertyFlags(vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent),
+                vo_.physical_device
+            )
+        );
+
+        vo_.vertex_buffer_memory = vo_.logical_device.allocateMemory(alloc_info);
+        vo_.logical_device.bindBufferMemory(vo_.vertex_buffer, vo_.vertex_buffer_memory, 0);
+
+        void *data = vo_.logical_device.mapMemory(vo_.vertex_buffer_memory, 0, buffer_info.size);
+        // std::copy(VERTICES.data(), VERTICES.data() + VERTICES.size(), (Vertex*)data);
+        std::memcpy(data, VERTICES.data(), buffer_info.size);
+        vo_.logical_device.unmapMemory(vo_.vertex_buffer_memory);
+    }
+
     void VulkanManager::CreateCommandBuffers() {
         vk::CommandBufferAllocateInfo cmd_buff_ainfo{};
         cmd_buff_ainfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
@@ -375,6 +406,10 @@ namespace mvk {
         }
     }
 
+    void VulkanManager::CreateObject(std::vector<Vertex> vertices) {
+        vo_.loader = ObjectLoader(vertices);
+    }
+
     void VulkanManager::DestroyEverything() {
         DestroySwapchainImages();
         vo_.logical_device.destroySwapchainKHR(vo_.swapchain);
@@ -384,6 +419,9 @@ namespace mvk {
             vo_.logical_device.destroySemaphore(vo_.render_finished_sems[i]);
             vo_.logical_device.destroyFence(vo_.in_flight_fences[i]);
         }
+
+        vo_.logical_device.destroyBuffer(vo_.vertex_buffer);
+        vo_.logical_device.freeMemory(vo_.vertex_buffer_memory);
 
         vo_.logical_device.destroyCommandPool(vo_.command_pool);
         vo_.logical_device.destroyPipeline(vo_.pipeline);

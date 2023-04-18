@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "../VulkanManager/VulkanManager.h"
+#include "../ObjectLoader/ObjectLoader.h"
 
 namespace mvk {
     class VKPresenter : public VulkanManager {
@@ -20,6 +21,7 @@ namespace mvk {
        private:
         uint32_t current_frame_ = 0;
         bool window_resized_ = false;
+        ObjectLoader loader_;
        
     };
 }
