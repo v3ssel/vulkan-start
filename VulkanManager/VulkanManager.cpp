@@ -345,34 +345,62 @@ namespace mvk {
     }
 
     void VulkanManager::CreateVertexBuffer() {
-        vk::BufferCreateInfo buffer_info{};
-        buffer_info.sType = vk::StructureType::eBufferCreateInfo;
-        buffer_info.setSize(vk::DeviceSize(sizeof(VERTICES[0]) * VERTICES.size()));
-        buffer_info.setUsage(vk::BufferUsageFlagBits::eVertexBuffer);
-        buffer_info.setSharingMode(vk::SharingMode::eExclusive);
-        
-        vo_.vertex_buffer = vo_.logical_device.createBuffer(buffer_info);
+        // vk::DeviceSize buffer_size = sizeof(vo_.loader.object[0]) * vo_.loader.object.size();
+        vk::DeviceSize buffer_size = sizeof(VERTICES[0]) * VERTICES.size();
 
-        vk::MemoryRequirements mem_reqs = vo_.logical_device.getBufferMemoryRequirements(vo_.vertex_buffer);
-        
-        vk::MemoryAllocateInfo alloc_info{};
-        alloc_info.sType = vk::StructureType::eMemoryAllocateInfo;
-        alloc_info.setAllocationSize(mem_reqs.size);
-        alloc_info.setMemoryTypeIndex(
-            vo_.validator.ChooseDeviceMemoryType(
-                mem_reqs.memoryTypeBits,
-                vk::MemoryPropertyFlags(vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent),
-                vo_.physical_device
-            )
-        );
+        vk::Buffer staging_buffer;
+        vk::DeviceMemory staging_memory;
 
-        vo_.vertex_buffer_memory = vo_.logical_device.allocateMemory(alloc_info);
-        vo_.logical_device.bindBufferMemory(vo_.vertex_buffer, vo_.vertex_buffer_memory, 0);
+        CreateBuffer(buffer_size,
+                     vk::BufferUsageFlagBits::eTransferSrc,
+                     vk::MemoryPropertyFlags(vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent),
+                     staging_buffer,
+                     staging_memory);
 
-        void *data = vo_.logical_device.mapMemory(vo_.vertex_buffer_memory, 0, buffer_info.size);
+        void *data = vo_.logical_device.mapMemory(staging_memory, 0, buffer_size);
         // std::copy(VERTICES.data(), VERTICES.data() + VERTICES.size(), (Vertex*)data);
-        std::memcpy(data, VERTICES.data(), buffer_info.size);
-        vo_.logical_device.unmapMemory(vo_.vertex_buffer_memory);
+        std::memcpy(data, VERTICES.data(), buffer_size);
+        vo_.logical_device.unmapMemory(staging_memory);
+
+        CreateBuffer(buffer_size,
+                     vk::BufferUsageFlags(vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer),
+                     vk::MemoryPropertyFlags(vk::MemoryPropertyFlagBits::eDeviceLocal),
+                     vo_.vertex_buffer,
+                     vo_.vertex_memory);
+
+        CopyBuffer(staging_buffer, vo_.vertex_buffer, buffer_size);
+
+        vo_.logical_device.destroyBuffer(staging_buffer);
+        vo_.logical_device.freeMemory(staging_memory);
+    }
+
+    void VulkanManager::CreateIndexBuffer() {
+        vk::DeviceSize buffer_size = sizeof(INDICES[0]) * INDICES.size();
+
+        vk::Buffer staging_buffer;
+        vk::DeviceMemory staging_memory;
+
+        CreateBuffer(buffer_size,
+                     vk::BufferUsageFlagBits::eTransferSrc,
+                     vk::MemoryPropertyFlags(vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent),
+                     staging_buffer,
+                     staging_memory);
+
+        void *data = vo_.logical_device.mapMemory(staging_memory, 0, buffer_size);
+        // std::copy(INDICES.data(), INDICES.data() + INDICES.size(), (Vertex*)data);
+        std::memcpy(data, INDICES.data(), buffer_size);
+        vo_.logical_device.unmapMemory(staging_memory);
+
+        CreateBuffer(buffer_size,
+                     vk::BufferUsageFlags(vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer),
+                     vk::MemoryPropertyFlags(vk::MemoryPropertyFlagBits::eDeviceLocal),
+                     vo_.indices_buffer,
+                     vo_.indices_memory);
+
+        CopyBuffer(staging_buffer, vo_.indices_buffer, buffer_size);
+
+        vo_.logical_device.destroyBuffer(staging_buffer);
+        vo_.logical_device.freeMemory(staging_memory);
     }
 
     void VulkanManager::CreateCommandBuffers() {
@@ -421,7 +449,10 @@ namespace mvk {
         }
 
         vo_.logical_device.destroyBuffer(vo_.vertex_buffer);
-        vo_.logical_device.freeMemory(vo_.vertex_buffer_memory);
+        vo_.logical_device.freeMemory(vo_.vertex_memory);
+
+        vo_.logical_device.destroyBuffer(vo_.indices_buffer);
+        vo_.logical_device.freeMemory(vo_.indices_memory);
 
         vo_.logical_device.destroyCommandPool(vo_.command_pool);
         vo_.logical_device.destroyPipeline(vo_.pipeline);
@@ -444,7 +475,69 @@ namespace mvk {
             vo_.logical_device.destroyImageView(image_view);
     }
 
-    void VulkanManager::FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT& debug_info) {
+    void VulkanManager::CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &memory) {
+        vk::BufferCreateInfo buffer_info{};
+        buffer_info.sType = vk::StructureType::eBufferCreateInfo;
+        buffer_info.setSize(size);
+        buffer_info.setUsage(usage);
+        buffer_info.setSharingMode(vk::SharingMode::eExclusive);
+        
+        buffer = vo_.logical_device.createBuffer(buffer_info);
+
+        vk::MemoryRequirements mem_reqs = vo_.logical_device.getBufferMemoryRequirements(buffer);
+        
+        vk::MemoryAllocateInfo alloc_info{};
+        alloc_info.sType = vk::StructureType::eMemoryAllocateInfo;
+        alloc_info.setAllocationSize(mem_reqs.size);
+        alloc_info.setMemoryTypeIndex(
+            vo_.validator.ChooseDeviceMemoryType(
+                mem_reqs.memoryTypeBits,
+                properties,
+                vo_.physical_device
+            )
+        );
+
+        memory = vo_.logical_device.allocateMemory(alloc_info);
+        vo_.logical_device.bindBufferMemory(buffer, memory, 0);
+    }
+
+    void VulkanManager::CopyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size) {
+        vk::CommandBufferAllocateInfo alloc_info{};
+        alloc_info.sType = vk::StructureType::eCommandBufferAllocateInfo;
+        alloc_info.setLevel(vk::CommandBufferLevel::ePrimary);
+        alloc_info.setCommandPool(vo_.command_pool);
+        alloc_info.setCommandBufferCount(1);
+
+        vk::CommandBuffer cmd_buffer;
+        vo_.logical_device.allocateCommandBuffers(&alloc_info, &cmd_buffer);
+
+        vk::CommandBufferBeginInfo begin_info{};
+        begin_info.sType = vk::StructureType::eCommandBufferBeginInfo;
+        begin_info.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+        cmd_buffer.begin(begin_info);
+
+        vk::BufferCopy buff_copy{};
+        buff_copy.setDstOffset(0);
+        buff_copy.setSrcOffset(0);
+        buff_copy.setSize(size);
+
+        cmd_buffer.copyBuffer(src, dst, 1, &buff_copy);
+
+        cmd_buffer.end();
+
+        vk::SubmitInfo submit{};
+        submit.sType = vk::StructureType::eSubmitInfo;
+        submit.setCommandBufferCount(1);
+        submit.setPCommandBuffers(&cmd_buffer);
+
+        vo_.graphics_queue.submit(1, &submit, VK_NULL_HANDLE);
+        vo_.graphics_queue.waitIdle();
+
+        vo_.logical_device.freeCommandBuffers(vo_.command_pool, 1, &cmd_buffer);
+    }
+
+    void VulkanManager::FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info)
+    {
         debug_info.sType = vk::StructureType::eDebugUtilsMessengerCreateInfoEXT;
         debug_info.setMessageSeverity(
             vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |

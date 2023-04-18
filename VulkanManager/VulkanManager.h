@@ -34,6 +34,7 @@ namespace mvk {
         void CreateFramebuffers();
         void CreateCommandPool();
         void CreateVertexBuffer();
+        void CreateIndexBuffer();
         void CreateCommandBuffers();
         void CreateSyncObjects();
         void CreateObject(std::vector<Vertex> vertices);
@@ -49,6 +50,9 @@ namespace mvk {
         mvk::VulkanObjects vo_;
        
        private:
+        void CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &memory);
+        void CopyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size);
+
         void FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info);
         void DestroySwapchainImages();
         GLFWwindow *window_;

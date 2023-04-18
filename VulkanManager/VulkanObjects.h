@@ -43,7 +43,10 @@ namespace mvk {
         
         ObjectLoader loader;
         vk::Buffer vertex_buffer;
-        vk::DeviceMemory vertex_buffer_memory;    
+        vk::DeviceMemory vertex_memory;
+        
+        vk::Buffer indices_buffer;
+        vk::DeviceMemory indices_memory;    
     };
 }
 

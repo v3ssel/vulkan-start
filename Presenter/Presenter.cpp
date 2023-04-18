@@ -13,6 +13,7 @@ void mvk::VKPresenter::Setup(GLFWwindow* window) {
     this->CreateFramebuffers();
     this->CreateCommandPool();
     this->CreateVertexBuffer();
+    this->CreateIndexBuffer();
     this->CreateCommandBuffers();
     this->CreateSyncObjects();
     this->CreateObject(VERTICES);
@@ -120,7 +121,10 @@ void mvk::VKPresenter::RecordCommandBuffer(vk::CommandBuffer command_buffer, uin
     vk::DeviceSize offsets[] = {0};
     command_buffer.bindVertexBuffers(0, 1, vertex_buff, offsets); 
 
-    command_buffer.draw(static_cast<uint32_t>(VERTICES.size()), 1, 0, 0);
+    command_buffer.bindIndexBuffer(vo_.indices_buffer, 0, vk::IndexType::eUint32);
+
+    // command_buffer.draw(static_cast<uint32_t>(VERTICES.size()), 1, 0, 0);
+    command_buffer.drawIndexed(static_cast<uint32_t>(INDICES.size()), 1, 0, 0, 0);
 
     // command_buffer.setPolygonModeEXT(vk::PolygonMode::eLine, vk::DispatchLoaderDynamic(vo->instance, vkGetInstanceProcAddr));
     // command_buffer.draw(3, 1, 0, 0);
