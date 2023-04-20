@@ -26,6 +26,7 @@ namespace mvk {
         vk::Format sc_format;
         std::vector<vk::ImageView> image_views;
 
+        vk::DescriptorSetLayout descriptor_set_layout;
         vk::PipelineLayout layout;
         vk::RenderPass render_pass;
         vk::Pipeline pipeline;
@@ -44,9 +45,16 @@ namespace mvk {
         ObjectLoader loader;
         vk::Buffer vertex_buffer;
         vk::DeviceMemory vertex_memory;
-        
+
         vk::Buffer indices_buffer;
-        vk::DeviceMemory indices_memory;    
+        vk::DeviceMemory indices_memory;   
+
+        std::vector<vk::Buffer> uniform_buffers; 
+        std::vector<vk::DeviceMemory> uniform_memories; 
+        std::vector<void*> uniform_maps;
+
+        vk::DescriptorPool descriptor_pool;
+        std::vector<vk::DescriptorSet> descriptor_sets;
     };
 }
 

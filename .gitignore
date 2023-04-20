@@ -5,3 +5,5 @@ obj
 *.o
 *.a
 build
+*.obj
+*.mtl

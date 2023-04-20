@@ -260,6 +260,22 @@ namespace mvk {
         vo_.render_pass = vo_.logical_device.createRenderPass(render_pass_info);
     }
 
+    void VulkanManager::CreateDescriptorSetLayout() {
+        vk::DescriptorSetLayoutBinding descriptor_binding{};
+        descriptor_binding.setBinding(0);
+        descriptor_binding.setDescriptorCount(1);
+        descriptor_binding.setDescriptorType(vk::DescriptorType::eUniformBuffer);
+        descriptor_binding.setPImmutableSamplers(nullptr);
+        descriptor_binding.setStageFlags(vk::ShaderStageFlagBits::eVertex);
+
+        vk::DescriptorSetLayoutCreateInfo descriptor_info{};
+        descriptor_info.sType = vk::StructureType::eDescriptorSetLayoutCreateInfo;
+        descriptor_info.setBindingCount(1);
+        descriptor_info.setPBindings(&descriptor_binding);
+
+        vo_.descriptor_set_layout = vo_.logical_device.createDescriptorSetLayout(descriptor_info);
+    }
+
     void VulkanManager::CreateGraphicsPipeline() {
         vk::ShaderModuleCreateInfo vertex_info = ShadersHelper::LoadVertexShader();
         vk::ShaderModuleCreateInfo fragment_info = ShadersHelper::LoadFragmentShader();
@@ -282,8 +298,9 @@ namespace mvk {
 
         vk::PipelineLayoutCreateInfo layout_info{};
         layout_info.sType = vk::StructureType::ePipelineLayoutCreateInfo;
-        layout_info.setSetLayoutCount(0);
-        layout_info.setPushConstantRangeCount(0);
+        layout_info.setSetLayoutCount(1);
+        layout_info.setPSetLayouts(&vo_.descriptor_set_layout);
+
         vo_.layout = vo_.logical_device.createPipelineLayout(layout_info);
         
 
@@ -403,6 +420,74 @@ namespace mvk {
         vo_.logical_device.freeMemory(staging_memory);
     }
 
+    void VulkanManager::CreateUniformBuffers() {
+        vk::DeviceSize buffer_size = sizeof(MVP);
+
+        vo_.uniform_buffers.resize(MAX_FRAMES);
+        vo_.uniform_memories.resize(MAX_FRAMES);
+        vo_.uniform_maps.resize(MAX_FRAMES);
+        
+        for (size_t i = 0; i < MAX_FRAMES; ++i) {
+            CreateBuffer(buffer_size,
+                         vk::BufferUsageFlagBits::eUniformBuffer,
+                         vk::MemoryPropertyFlags(vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent),
+                         vo_.uniform_buffers[i],
+                         vo_.uniform_memories[i]);
+
+            vo_.uniform_maps[i] = vo_.logical_device.mapMemory(vo_.uniform_memories[i], 0, buffer_size);
+        }
+
+    }
+
+    void VulkanManager::CreateDescriptorPool() {
+        vk::DescriptorPoolSize desc_pool_size{};
+        desc_pool_size.setType(vk::DescriptorType::eUniformBuffer);
+        desc_pool_size.setDescriptorCount(MAX_FRAMES);
+
+        vk::DescriptorPoolCreateInfo desc_pool_info{};
+        desc_pool_info.sType = vk::StructureType::eDescriptorPoolCreateInfo;
+        desc_pool_info.setPoolSizeCount(1);
+        desc_pool_info.setPPoolSizes(&desc_pool_size);
+        desc_pool_info.setMaxSets(MAX_FRAMES);
+
+        vo_.descriptor_pool = vo_.logical_device.createDescriptorPool(desc_pool_info);
+    }
+
+    void VulkanManager::CreateDescriptorSets() {
+        std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES, vo_.descriptor_set_layout);
+
+        vk::DescriptorSetAllocateInfo desc_set_alloc_info{};
+        desc_set_alloc_info.sType = vk::StructureType::eDescriptorSetAllocateInfo;
+        desc_set_alloc_info.setDescriptorPool(vo_.descriptor_pool);
+        desc_set_alloc_info.setDescriptorSetCount(MAX_FRAMES);
+        desc_set_alloc_info.setPSetLayouts(layouts.data());
+
+        vo_.descriptor_sets.resize(MAX_FRAMES);
+        if (vo_.logical_device.allocateDescriptorSets(&desc_set_alloc_info, vo_.descriptor_sets.data()) != vk::Result::eSuccess)
+            throw std::runtime_error("Failed to create descriptor sets.");
+        
+        for (size_t i = 0; i < MAX_FRAMES; ++i) {
+            vk::DescriptorBufferInfo desc_buffer_info{};
+            desc_buffer_info.setBuffer(vo_.uniform_buffers[i]);
+            desc_buffer_info.setOffset(0);
+            desc_buffer_info.setRange(sizeof(MVP));
+
+            vk::WriteDescriptorSet write_desc_set{};
+            write_desc_set.sType = vk::StructureType::eWriteDescriptorSet;
+            write_desc_set.setDstSet(vo_.descriptor_sets[i]);
+            write_desc_set.setDstBinding(0);
+            write_desc_set.setDstArrayElement(0);
+            write_desc_set.setDescriptorType(vk::DescriptorType::eUniformBuffer);
+            write_desc_set.setDescriptorCount(1);
+            
+            write_desc_set.setPBufferInfo(&desc_buffer_info);
+            write_desc_set.setPImageInfo(nullptr);
+            write_desc_set.setPTexelBufferView(nullptr);
+
+            vo_.logical_device.updateDescriptorSets(1, &write_desc_set, 0, nullptr);
+        }
+    }
+
     void VulkanManager::CreateCommandBuffers() {
         vk::CommandBufferAllocateInfo cmd_buff_ainfo{};
         cmd_buff_ainfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
@@ -441,6 +526,14 @@ namespace mvk {
     void VulkanManager::DestroyEverything() {
         DestroySwapchainImages();
         vo_.logical_device.destroySwapchainKHR(vo_.swapchain);
+
+        for (size_t i = 0; i < MAX_FRAMES; ++i) {
+            vo_.logical_device.destroyBuffer(vo_.uniform_buffers[i]);
+            vo_.logical_device.freeMemory(vo_.uniform_memories[i]);
+        }
+
+        vo_.logical_device.destroyDescriptorPool(vo_.descriptor_pool);
+        vo_.logical_device.destroyDescriptorSetLayout(vo_.descriptor_set_layout);
 
         for (size_t i = 0; i < MAX_FRAMES; ++i) {
             vo_.logical_device.destroySemaphore(vo_.image_available_sems[i]);
@@ -509,7 +602,8 @@ namespace mvk {
         alloc_info.setCommandBufferCount(1);
 
         vk::CommandBuffer cmd_buffer;
-        vo_.logical_device.allocateCommandBuffers(&alloc_info, &cmd_buffer);
+        if (vo_.logical_device.allocateCommandBuffers(&alloc_info, &cmd_buffer) != vk::Result::eSuccess)
+            throw std::runtime_error("Cannot allocate index command buffer.");
 
         vk::CommandBufferBeginInfo begin_info{};
         begin_info.sType = vk::StructureType::eCommandBufferBeginInfo;
@@ -530,7 +624,9 @@ namespace mvk {
         submit.setCommandBufferCount(1);
         submit.setPCommandBuffers(&cmd_buffer);
 
-        vo_.graphics_queue.submit(1, &submit, VK_NULL_HANDLE);
+        if (vo_.graphics_queue.submit(1, &submit, VK_NULL_HANDLE) != vk::Result::eSuccess)
+            throw std::runtime_error("Cannot submit index buffer to graphic queue.");
+
         vo_.graphics_queue.waitIdle();
 
         vo_.logical_device.freeCommandBuffers(vo_.command_pool, 1, &cmd_buffer);

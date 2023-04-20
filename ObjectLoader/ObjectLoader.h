@@ -12,6 +12,12 @@ namespace mvk {
         glm::vec3 Color;
     };
 
+    struct MVP {
+        glm::mat4 Model;
+        glm::mat4 View;
+        glm::mat4 Projection;
+    };
+
     class ObjectLoader {
        public:
         ObjectLoader() = default;

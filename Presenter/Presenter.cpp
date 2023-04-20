@@ -9,14 +9,18 @@ void mvk::VKPresenter::Setup(GLFWwindow* window) {
     this->CreateSwapChain();
     this->CreateImageView();
     this->CreateRenderPass();
+    this->CreateDescriptorSetLayout();
     this->CreateGraphicsPipeline();
     this->CreateFramebuffers();
     this->CreateCommandPool();
     this->CreateVertexBuffer();
     this->CreateIndexBuffer();
+    this->CreateUniformBuffers();
+    this->CreateDescriptorPool();
+    this->CreateDescriptorSets();
     this->CreateCommandBuffers();
     this->CreateSyncObjects();
-    this->CreateObject(VERTICES);
+    // this->CreateObject(VERTICES);
 }
 
 void mvk::VKPresenter::DrawFrame() {
@@ -32,6 +36,8 @@ void mvk::VKPresenter::DrawFrame() {
     } else if (res.result != vk::Result::eSuccess && res.result != vk::Result::eSuboptimalKHR) {
         throw std::runtime_error("Cannot acquire next image.");
     }
+
+    UpdateUniforms(current_frame_);
 
     if (vo_.logical_device.resetFences(1, &vo_.in_flight_fences[current_frame_]) != vk::Result::eSuccess)
         throw std::runtime_error("Cannot reset fences.");
@@ -120,18 +126,35 @@ void mvk::VKPresenter::RecordCommandBuffer(vk::CommandBuffer command_buffer, uin
     vk::Buffer vertex_buff[] = {vo_.vertex_buffer};
     vk::DeviceSize offsets[] = {0};
     command_buffer.bindVertexBuffers(0, 1, vertex_buff, offsets); 
-
     command_buffer.bindIndexBuffer(vo_.indices_buffer, 0, vk::IndexType::eUint32);
+    command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vo_.layout, 0, 1, &vo_.descriptor_sets[current_frame_], 0, nullptr);
 
-    // command_buffer.draw(static_cast<uint32_t>(VERTICES.size()), 1, 0, 0);
+    // command_buffer.setPolygonModeEXT(vk::PolygonMode::eLine, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
     command_buffer.drawIndexed(static_cast<uint32_t>(INDICES.size()), 1, 0, 0, 0);
 
-    // command_buffer.setPolygonModeEXT(vk::PolygonMode::eLine, vk::DispatchLoaderDynamic(vo->instance, vkGetInstanceProcAddr));
-    // command_buffer.draw(3, 1, 0, 0);
+    // command_buffer.setPolygonModeEXT(vk::PolygonMode::ePoint, vk::DispatchLoaderDynamic(vo_.instance, vkGetInstanceProcAddr));
+    // command_buffer.drawIndexed(static_cast<uint32_t>(INDICES.size()), 1, 0, 0, 0);
 
     command_buffer.endRenderPass();
 
     command_buffer.end();
+}
+
+void mvk::VKPresenter::UpdateUniforms(uint32_t current_image) {
+    static auto StartTime = std::chrono::high_resolution_clock::now();
+    auto current_time = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - StartTime).count();
+
+    MVP mvp{};
+    mvp.Model = glm::rotate(glm::mat4(1.0f), time * 6.0f * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    mvp.View = glm::lookAt(glm::vec3(0.0f, 1.5f, 5.0f), glm::vec3(0.0f, -0.2f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    mvp.Projection = glm::perspective(glm::radians(45.0f), vo_.sc_extent.width / (float) vo_.sc_extent.height, 0.1f, 10.0f);
+    mvp.Projection[1][1] *= -1;
+    // mvp.Model = glm::mat4(1.0f);
+    // mvp.View = glm::mat4(1.0f);
+    // mvp.Projection = glm::mat4(1.0f);
+
+    std::memcpy(vo_. uniform_maps[current_image], &mvp, sizeof(mvp));
 }
 
 void mvk::VKPresenter::PrintLoadedData() {

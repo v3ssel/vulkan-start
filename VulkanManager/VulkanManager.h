@@ -23,18 +23,28 @@ namespace mvk {
 
         void CreateInstance();
         void SetupDebug();
+        
         void CreateSurface(GLFWwindow *window);
         void TakeVideocard();
         void CreateLogicalDevice();
+        
         void CreateSwapChain(bool prev = false);
         void RecreateSwapChain();
+        
         void CreateImageView();
         void CreateRenderPass();
+        void CreateDescriptorSetLayout();
         void CreateGraphicsPipeline();
         void CreateFramebuffers();
+        
         void CreateCommandPool();
         void CreateVertexBuffer();
         void CreateIndexBuffer();
+        void CreateUniformBuffers();
+        void CreateDescriptorPool();
+        void CreateDescriptorSets();
+
+
         void CreateCommandBuffers();
         void CreateSyncObjects();
         void CreateObject(std::vector<Vertex> vertices);
