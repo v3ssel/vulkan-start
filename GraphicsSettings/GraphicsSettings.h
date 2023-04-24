@@ -20,6 +20,8 @@ namespace mvk {
         vk::PipelineColorBlendAttachmentState CreateColorBlend();
         vk::PipelineColorBlendStateCreateInfo CreateColorBlendInfo(vk::PipelineColorBlendAttachmentState& colorblend);
         vk::PipelineDynamicStateCreateInfo CreateDynamicStates();
+
+        static vk::SamplerCreateInfo SetupTextureSettings(vk::PhysicalDevice& phys_device);
     };
 }
 

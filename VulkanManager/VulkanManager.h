@@ -10,7 +10,6 @@
 #include <vector>
 #include <set>
 
-
 #include "../MVKConstants.h"
 #include "VulkanObjects.h"
 #include "../Shaders/ShadersHelper.h"
@@ -31,13 +30,17 @@ namespace mvk {
         void CreateSwapChain(bool prev = false);
         void RecreateSwapChain();
         
-        void CreateImageView();
+        void CreateImageViews();
         void CreateRenderPass();
         void CreateDescriptorSetLayout();
         void CreateGraphicsPipeline();
         void CreateFramebuffers();
-        
         void CreateCommandPool();
+
+        void CreateTextureImage();
+        void CreateTextureImageView();
+        void CreateTextureSampler();
+        
         void CreateVertexBuffer();
         void CreateIndexBuffer();
         void CreateUniformBuffers();
@@ -47,7 +50,7 @@ namespace mvk {
 
         void CreateCommandBuffers();
         void CreateSyncObjects();
-        void CreateObject(std::vector<Vertex> vertices);
+        void CreateObject();
 
         void DestroyEverything();
 
@@ -60,8 +63,17 @@ namespace mvk {
         mvk::VulkanObjects vo_;
        
        private:
+        vk::ImageView CreateImageView(vk::Image image, vk::Format format);
+
         void CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &memory);
         void CopyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size);
+
+        void CreateImage(uint32_t width, uint32_t heigth, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Image &image, vk::DeviceMemory &memory);
+        void TransitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout old_layout, vk::ImageLayout new_layout);
+        void CopyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
+
+        vk::CommandBuffer BeginSingletimeCommand();
+        void EndSingletimeCommand(vk::CommandBuffer cmd_buffer);
 
         void FillDebugInfo(vk::DebugUtilsMessengerCreateInfoEXT &debug_info);
         void DestroySwapchainImages();

@@ -5,11 +5,16 @@
 #include <glm/glm.hpp>
 
 #include <array>
+#include <fstream>
+#include <sstream>
+
+#include "../MVKConstants.h"
 
 namespace mvk {
     struct Vertex {
         glm::vec3 Position;
         glm::vec3 Color;
+        glm::vec2 UVs;
     };
 
     struct MVP {
@@ -20,11 +25,10 @@ namespace mvk {
 
     class ObjectLoader {
        public:
-        ObjectLoader() = default;
-        ObjectLoader(std::vector<Vertex> vertices);
+        void LoadObject();
 
         static vk::VertexInputBindingDescription GetVerticesBindingDescription();
-        static std::array<vk::VertexInputAttributeDescription, 2> GetVerticesAttributeDescription();
+        static std::vector<vk::VertexInputAttributeDescription> GetVerticesAttributeDescription();
 
         std::vector<Vertex> object;
     };

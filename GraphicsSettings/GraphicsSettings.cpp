@@ -124,3 +124,30 @@ vk::PipelineDynamicStateCreateInfo mvk::GraphicsSettings::CreateDynamicStates() 
 
     return dynamic_state_info;
 }
+
+vk::SamplerCreateInfo mvk::GraphicsSettings::SetupTextureSettings(vk::PhysicalDevice& phys_device) {
+    vk::SamplerCreateInfo sampler_info{};
+    sampler_info.sType = vk::StructureType::eSamplerCreateInfo;
+    sampler_info.setMagFilter(vk::Filter::eLinear);
+    sampler_info.setMinFilter(vk::Filter::eLinear);
+
+    sampler_info.setAddressModeU(vk::SamplerAddressMode::eRepeat);
+    sampler_info.setAddressModeV(vk::SamplerAddressMode::eRepeat);
+    sampler_info.setAddressModeW(vk::SamplerAddressMode::eRepeat);
+
+    sampler_info.setAnisotropyEnable(VK_TRUE);
+    sampler_info.setMaxAnisotropy(phys_device.getProperties().limits.maxSamplerAnisotropy);
+
+    sampler_info.setBorderColor(vk::BorderColor::eIntOpaqueBlack);
+
+    sampler_info.setUnnormalizedCoordinates(VK_FALSE);
+    sampler_info.setCompareEnable(VK_FALSE);
+    sampler_info.setCompareOp(vk::CompareOp::eAlways);
+
+    sampler_info.setMipmapMode(vk::SamplerMipmapMode::eLinear);
+    sampler_info.setMipLodBias(0.0f);
+    sampler_info.setMinLod(0.0f);
+    sampler_info.setMaxLod(0.0f);
+
+    return sampler_info;
+}

@@ -7,12 +7,16 @@ void mvk::VKPresenter::Setup(GLFWwindow* window) {
     this->TakeVideocard();
     this->CreateLogicalDevice();
     this->CreateSwapChain();
-    this->CreateImageView();
+    this->CreateImageViews();
     this->CreateRenderPass();
     this->CreateDescriptorSetLayout();
     this->CreateGraphicsPipeline();
     this->CreateFramebuffers();
     this->CreateCommandPool();
+    this->CreateTextureImage();
+    this->CreateTextureImageView();
+    this->CreateTextureSampler();
+    this->CreateObject();
     this->CreateVertexBuffer();
     this->CreateIndexBuffer();
     this->CreateUniformBuffers();
@@ -20,7 +24,6 @@ void mvk::VKPresenter::Setup(GLFWwindow* window) {
     this->CreateDescriptorSets();
     this->CreateCommandBuffers();
     this->CreateSyncObjects();
-    // this->CreateObject(VERTICES);
 }
 
 void mvk::VKPresenter::DrawFrame() {
@@ -146,13 +149,10 @@ void mvk::VKPresenter::UpdateUniforms(uint32_t current_image) {
     float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - StartTime).count();
 
     MVP mvp{};
-    mvp.Model = glm::rotate(glm::mat4(1.0f), time * 6.0f * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    mvp.Model = glm::rotate(glm::mat4(1.0f), 3.0f * time * 1.0f * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     mvp.View = glm::lookAt(glm::vec3(0.0f, 1.5f, 5.0f), glm::vec3(0.0f, -0.2f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     mvp.Projection = glm::perspective(glm::radians(45.0f), vo_.sc_extent.width / (float) vo_.sc_extent.height, 0.1f, 10.0f);
     mvp.Projection[1][1] *= -1;
-    // mvp.Model = glm::mat4(1.0f);
-    // mvp.View = glm::mat4(1.0f);
-    // mvp.Projection = glm::mat4(1.0f);
 
     std::memcpy(vo_. uniform_maps[current_image], &mvp, sizeof(mvp));
 }

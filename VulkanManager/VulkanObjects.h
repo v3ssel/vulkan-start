@@ -55,6 +55,11 @@ namespace mvk {
 
         vk::DescriptorPool descriptor_pool;
         std::vector<vk::DescriptorSet> descriptor_sets;
+
+        vk::Image texture_image;
+        vk::DeviceMemory texture_memory;
+        vk::ImageView texture_image_view;
+        vk::Sampler texture_sampler;
     };
 }
 

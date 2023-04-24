@@ -1,6 +1,9 @@
 #include "../QueueFamilies/QueueFamilies.h"
 #include "VulkanManager.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,
     VkDebugUtilsMessageTypeFlagsEXT type,
@@ -116,6 +119,7 @@ namespace mvk {
 
         vk::PhysicalDeviceFeatures features{};
         features.setFillModeNonSolid(VK_TRUE);
+        features.setSamplerAnisotropy(VK_TRUE);
         logical_device_info.setPEnabledFeatures(&features);
 
         vk::PhysicalDeviceExtendedDynamicState3FeaturesEXT extended_features{};
@@ -192,31 +196,15 @@ namespace mvk {
         DestroySwapchainImages();
 
         CreateSwapChain(&vo_.swapchain);
-        CreateImageView();
+        CreateImageViews();
         CreateFramebuffers();
     }
 
-    void VulkanManager::CreateImageView() {
+    void VulkanManager::CreateImageViews() {
         vo_.image_views.resize(vo_.swapchain_images.size());
 
         for (size_t i = 0; i < vo_.swapchain_images.size(); ++i) {
-            vk::ImageViewCreateInfo image_info{};
-            image_info.sType = vk::StructureType::eImageViewCreateInfo;
-            image_info.setImage(vo_.swapchain_images[i]);
-            image_info.setViewType(vk::ImageViewType::e2D);
-            image_info.setFormat(vo_.sc_format);
-            image_info.setComponents(
-                vk::ComponentMapping(
-                    vk::ComponentSwizzle::eIdentity,
-                    vk::ComponentSwizzle::eIdentity,
-                    vk::ComponentSwizzle::eIdentity,
-                    vk::ComponentSwizzle::eIdentity
-                )
-            );
-            image_info.setSubresourceRange(
-                vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
-            );
-            vo_.image_views[i] = vo_.logical_device.createImageView(image_info);
+            vo_.image_views[i] = CreateImageView(vo_.swapchain_images[i], vo_.sc_format);
         }
     }
 
@@ -268,12 +256,23 @@ namespace mvk {
         descriptor_binding.setPImmutableSamplers(nullptr);
         descriptor_binding.setStageFlags(vk::ShaderStageFlagBits::eVertex);
 
+        vk::DescriptorSetLayoutBinding sampler_binding{};
+        sampler_binding.setBinding(1);
+        sampler_binding.setDescriptorCount(1);
+        sampler_binding.setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+        sampler_binding.setPImmutableSamplers(nullptr);
+        sampler_binding.setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+        std::array<vk::DescriptorSetLayoutBinding, 2> bindings = { descriptor_binding, sampler_binding };
+
         vk::DescriptorSetLayoutCreateInfo descriptor_info{};
         descriptor_info.sType = vk::StructureType::eDescriptorSetLayoutCreateInfo;
-        descriptor_info.setBindingCount(1);
-        descriptor_info.setPBindings(&descriptor_binding);
+        descriptor_info.setBindingCount(bindings.size());
+        descriptor_info.setPBindings(bindings.data());
 
-        vo_.descriptor_set_layout = vo_.logical_device.createDescriptorSetLayout(descriptor_info);
+        if (vo_.logical_device.createDescriptorSetLayout(&descriptor_info, nullptr, &vo_.descriptor_set_layout) != vk::Result::eSuccess) {
+            throw std::runtime_error("Cannot create descriptor set layout.");
+        }
     }
 
     void VulkanManager::CreateGraphicsPipeline() {
@@ -361,9 +360,54 @@ namespace mvk {
         vo_.command_pool = vo_.logical_device.createCommandPool(cmd_pool_info);
     }
 
+    void VulkanManager::CreateTextureImage() {
+        int tex_width, tex_height, tex_channels;
+        stbi_uc* pixels = stbi_load(TEXTURE_IMAGE_PATH.c_str(), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+
+        vk::DeviceSize image_size = tex_width * tex_height * 4;
+
+        if (!pixels)
+            throw std::runtime_error("Failed to load texture image.");
+
+        vk::Buffer staging_buffer;
+        vk::DeviceMemory staging_memory;
+
+        CreateBuffer(image_size,
+                     vk::BufferUsageFlagBits::eTransferSrc,
+                     vk::MemoryPropertyFlags(vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent),
+                     staging_buffer,
+                     staging_memory);
+        
+        void *data = vo_.logical_device.mapMemory(staging_memory, 0, image_size);
+        std::memcpy(data, pixels, image_size);
+        vo_.logical_device.unmapMemory(staging_memory);
+
+        stbi_image_free(pixels);
+
+        CreateImage(tex_width, tex_height, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+                    vk::MemoryPropertyFlagBits::eDeviceLocal, vo_.texture_image, vo_.texture_memory);
+    
+        TransitionImageLayout(vo_.texture_image, vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+        CopyBufferToImage(staging_buffer, vo_.texture_image, tex_width, tex_height);
+        TransitionImageLayout(vo_.texture_image, vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+    
+        vo_.logical_device.destroyBuffer(staging_buffer);
+        vo_.logical_device.freeMemory(staging_memory);
+    }
+
+    void VulkanManager::CreateTextureImageView() {
+        vo_.texture_image_view = CreateImageView(vo_.texture_image, vk::Format::eR8G8B8A8Srgb);
+    }
+
+    void VulkanManager::CreateTextureSampler() {
+        auto texture_settings = GraphicsSettings::SetupTextureSettings(vo_.physical_device);
+
+        vo_.texture_sampler = vo_.logical_device.createSampler(texture_settings);
+    }
+
     void VulkanManager::CreateVertexBuffer() {
-        // vk::DeviceSize buffer_size = sizeof(vo_.loader.object[0]) * vo_.loader.object.size();
-        vk::DeviceSize buffer_size = sizeof(VERTICES[0]) * VERTICES.size();
+        vk::DeviceSize buffer_size = sizeof(vo_.loader.object[0]) * vo_.loader.object.size();
+        // vk::DeviceSize buffer_size = sizeof(VERTICES[0]) * VERTICES.size();
 
         vk::Buffer staging_buffer;
         vk::DeviceMemory staging_memory;
@@ -375,8 +419,7 @@ namespace mvk {
                      staging_memory);
 
         void *data = vo_.logical_device.mapMemory(staging_memory, 0, buffer_size);
-        // std::copy(VERTICES.data(), VERTICES.data() + VERTICES.size(), (Vertex*)data);
-        std::memcpy(data, VERTICES.data(), buffer_size);
+        std::memcpy(data, vo_.loader.object.data(), buffer_size);
         vo_.logical_device.unmapMemory(staging_memory);
 
         CreateBuffer(buffer_size,
@@ -404,7 +447,6 @@ namespace mvk {
                      staging_memory);
 
         void *data = vo_.logical_device.mapMemory(staging_memory, 0, buffer_size);
-        // std::copy(INDICES.data(), INDICES.data() + INDICES.size(), (Vertex*)data);
         std::memcpy(data, INDICES.data(), buffer_size);
         vo_.logical_device.unmapMemory(staging_memory);
 
@@ -440,14 +482,20 @@ namespace mvk {
     }
 
     void VulkanManager::CreateDescriptorPool() {
-        vk::DescriptorPoolSize desc_pool_size{};
-        desc_pool_size.setType(vk::DescriptorType::eUniformBuffer);
-        desc_pool_size.setDescriptorCount(MAX_FRAMES);
+        vk::DescriptorPoolSize mvp_desc_pool_size{};
+        mvp_desc_pool_size.setType(vk::DescriptorType::eUniformBuffer);
+        mvp_desc_pool_size.setDescriptorCount(MAX_FRAMES);
+
+        vk::DescriptorPoolSize sampler_desc_pool_size{};
+        sampler_desc_pool_size.setType(vk::DescriptorType::eCombinedImageSampler);
+        sampler_desc_pool_size.setDescriptorCount(MAX_FRAMES);
+
+        std::array<vk::DescriptorPoolSize, 2> desc_pool_sizes = { mvp_desc_pool_size, sampler_desc_pool_size };
 
         vk::DescriptorPoolCreateInfo desc_pool_info{};
         desc_pool_info.sType = vk::StructureType::eDescriptorPoolCreateInfo;
-        desc_pool_info.setPoolSizeCount(1);
-        desc_pool_info.setPPoolSizes(&desc_pool_size);
+        desc_pool_info.setPoolSizeCount(desc_pool_sizes.size());
+        desc_pool_info.setPPoolSizes(desc_pool_sizes.data());
         desc_pool_info.setMaxSets(MAX_FRAMES);
 
         vo_.descriptor_pool = vo_.logical_device.createDescriptorPool(desc_pool_info);
@@ -472,19 +520,35 @@ namespace mvk {
             desc_buffer_info.setOffset(0);
             desc_buffer_info.setRange(sizeof(MVP));
 
-            vk::WriteDescriptorSet write_desc_set{};
-            write_desc_set.sType = vk::StructureType::eWriteDescriptorSet;
-            write_desc_set.setDstSet(vo_.descriptor_sets[i]);
-            write_desc_set.setDstBinding(0);
-            write_desc_set.setDstArrayElement(0);
-            write_desc_set.setDescriptorType(vk::DescriptorType::eUniformBuffer);
-            write_desc_set.setDescriptorCount(1);
-            
-            write_desc_set.setPBufferInfo(&desc_buffer_info);
-            write_desc_set.setPImageInfo(nullptr);
-            write_desc_set.setPTexelBufferView(nullptr);
+            vk::DescriptorImageInfo desc_image_info{};
+            desc_image_info.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+            desc_image_info.setImageView(vo_.texture_image_view);
+            desc_image_info.setSampler(vo_.texture_sampler);
 
-            vo_.logical_device.updateDescriptorSets(1, &write_desc_set, 0, nullptr);
+            vk::WriteDescriptorSet write_uniform_desc_set{};
+            write_uniform_desc_set.sType = vk::StructureType::eWriteDescriptorSet;
+            write_uniform_desc_set.setDstSet(vo_.descriptor_sets[i]);
+            write_uniform_desc_set.setDstBinding(0);
+            write_uniform_desc_set.setDstArrayElement(0);
+            write_uniform_desc_set.setDescriptorType(vk::DescriptorType::eUniformBuffer);
+            write_uniform_desc_set.setDescriptorCount(1);
+            write_uniform_desc_set.setPBufferInfo(&desc_buffer_info);
+            write_uniform_desc_set.setPImageInfo(nullptr);
+            write_uniform_desc_set.setPTexelBufferView(nullptr);
+
+            vk::WriteDescriptorSet write_texture_desc_set{};
+            write_texture_desc_set.sType = vk::StructureType::eWriteDescriptorSet;
+            write_texture_desc_set.setDstSet(vo_.descriptor_sets[i]);
+            write_texture_desc_set.setDstBinding(1);
+            write_texture_desc_set.setDstArrayElement(0);
+            write_texture_desc_set.setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+            write_texture_desc_set.setDescriptorCount(1);
+            write_texture_desc_set.setPImageInfo(&desc_image_info);
+            write_texture_desc_set.setPTexelBufferView(nullptr);
+
+            std::array<vk::WriteDescriptorSet, 2> write_desc_sets = { write_uniform_desc_set, write_texture_desc_set };
+
+            vo_.logical_device.updateDescriptorSets(write_desc_sets.size(), write_desc_sets.data(), 0, nullptr);
         }
     }
 
@@ -519,13 +583,18 @@ namespace mvk {
         }
     }
 
-    void VulkanManager::CreateObject(std::vector<Vertex> vertices) {
-        vo_.loader = ObjectLoader(vertices);
+    void VulkanManager::CreateObject() {
+        vo_.loader.LoadObject();
     }
 
     void VulkanManager::DestroyEverything() {
         DestroySwapchainImages();
         vo_.logical_device.destroySwapchainKHR(vo_.swapchain);
+
+        vo_.logical_device.destroySampler(vo_.texture_sampler);
+        vo_.logical_device.destroyImageView(vo_.texture_image_view);
+        vo_.logical_device.destroyImage(vo_.texture_image);
+        vo_.logical_device.freeMemory(vo_.texture_memory);
 
         for (size_t i = 0; i < MAX_FRAMES; ++i) {
             vo_.logical_device.destroyBuffer(vo_.uniform_buffers[i]);
@@ -568,7 +637,29 @@ namespace mvk {
             vo_.logical_device.destroyImageView(image_view);
     }
 
-    void VulkanManager::CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &memory) {
+    vk::ImageView VulkanManager::CreateImageView(vk::Image image, vk::Format format) {
+        vk::ImageViewCreateInfo image_info{};
+        image_info.sType = vk::StructureType::eImageViewCreateInfo;
+        image_info.setImage(image);
+        image_info.setViewType(vk::ImageViewType::e2D);
+        image_info.setFormat(format);
+        image_info.setComponents(
+            vk::ComponentMapping(
+                vk::ComponentSwizzle::eIdentity,
+                vk::ComponentSwizzle::eIdentity,
+                vk::ComponentSwizzle::eIdentity,
+                vk::ComponentSwizzle::eIdentity
+            )
+        );
+        image_info.setSubresourceRange(
+            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1)
+        );
+
+        return vo_.logical_device.createImageView(image_info);
+    }
+
+    void VulkanManager::CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer &buffer, vk::DeviceMemory &memory)
+    {
         vk::BufferCreateInfo buffer_info{};
         buffer_info.sType = vk::StructureType::eBufferCreateInfo;
         buffer_info.setSize(size);
@@ -595,20 +686,7 @@ namespace mvk {
     }
 
     void VulkanManager::CopyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size) {
-        vk::CommandBufferAllocateInfo alloc_info{};
-        alloc_info.sType = vk::StructureType::eCommandBufferAllocateInfo;
-        alloc_info.setLevel(vk::CommandBufferLevel::ePrimary);
-        alloc_info.setCommandPool(vo_.command_pool);
-        alloc_info.setCommandBufferCount(1);
-
-        vk::CommandBuffer cmd_buffer;
-        if (vo_.logical_device.allocateCommandBuffers(&alloc_info, &cmd_buffer) != vk::Result::eSuccess)
-            throw std::runtime_error("Cannot allocate index command buffer.");
-
-        vk::CommandBufferBeginInfo begin_info{};
-        begin_info.sType = vk::StructureType::eCommandBufferBeginInfo;
-        begin_info.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-        cmd_buffer.begin(begin_info);
+        vk::CommandBuffer cmd_buffer = BeginSingletimeCommand();
 
         vk::BufferCopy buff_copy{};
         buff_copy.setDstOffset(0);
@@ -617,6 +695,122 @@ namespace mvk {
 
         cmd_buffer.copyBuffer(src, dst, 1, &buff_copy);
 
+        EndSingletimeCommand(cmd_buffer);
+    }
+
+    void VulkanManager::CreateImage(uint32_t width,
+                                    uint32_t height,
+                                    vk::Format format,
+                                    vk::ImageTiling tiling,
+                                    vk::ImageUsageFlags usage,
+                                    vk::MemoryPropertyFlags properties,
+                                    vk::Image &image,
+                                    vk::DeviceMemory &memory) {
+        vk::ImageCreateInfo image_info{};
+        image_info.sType = vk::StructureType::eImageCreateInfo;
+        image_info.setImageType(vk::ImageType::e2D);
+        image_info.setExtent(vk::Extent3D(width, height, 1));
+        image_info.setMipLevels(1);
+        image_info.setArrayLayers(1);
+        image_info.setFormat(format);
+        image_info.setTiling(tiling);
+        image_info.setInitialLayout(vk::ImageLayout::eUndefined);
+        image_info.setUsage(usage);
+        image_info.setSharingMode(vk::SharingMode::eExclusive);
+        image_info.setSamples(vk::SampleCountFlagBits::e1);
+
+        image = vo_.logical_device.createImage(image_info);
+
+        vk::MemoryRequirements mem_reqs = vo_.logical_device.getImageMemoryRequirements(image);
+
+        vk::MemoryAllocateInfo mem_alloc_info{};
+        mem_alloc_info.sType = vk::StructureType::eMemoryAllocateInfo;
+        mem_alloc_info.setAllocationSize(mem_reqs.size);
+        mem_alloc_info.setMemoryTypeIndex(vo_.validator.ChooseDeviceMemoryType(mem_reqs.memoryTypeBits, properties, vo_.physical_device));
+
+        memory = vo_.logical_device.allocateMemory(mem_alloc_info);
+        vo_.logical_device.bindImageMemory(image, memory, 0);
+    }
+
+    void VulkanManager::TransitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout old_layout, vk::ImageLayout new_layout) {
+        vk::CommandBuffer cmd_buffer = BeginSingletimeCommand();
+
+        vk::ImageMemoryBarrier memory_barrier{};
+        memory_barrier.sType = vk::StructureType::eImageMemoryBarrier;
+        memory_barrier.setOldLayout(old_layout);
+        memory_barrier.setNewLayout(new_layout);
+
+        memory_barrier.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED);
+        memory_barrier.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED);
+
+        memory_barrier.setImage(image);
+        memory_barrier.setSubresourceRange(vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
+
+
+        vk::PipelineStageFlags source_stage;
+        vk::PipelineStageFlags dest_stage;
+
+        if (old_layout == vk::ImageLayout::eUndefined && new_layout == vk::ImageLayout::eTransferDstOptimal) {
+            memory_barrier.setSrcAccessMask(vk::AccessFlagBits::eNone);
+            memory_barrier.setDstAccessMask(vk::AccessFlagBits::eTransferWrite);
+
+            source_stage = vk::PipelineStageFlagBits::eTopOfPipe;
+            dest_stage = vk::PipelineStageFlagBits::eTransfer;
+        } else if (old_layout == vk::ImageLayout::eTransferDstOptimal && new_layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+            memory_barrier.setSrcAccessMask(vk::AccessFlagBits::eTransferWrite);
+            memory_barrier.setDstAccessMask(vk::AccessFlagBits::eShaderRead);
+
+            source_stage = vk::PipelineStageFlagBits::eTransfer;
+            dest_stage = vk::PipelineStageFlagBits::eFragmentShader;
+        }
+
+        cmd_buffer.pipelineBarrier(
+            source_stage, dest_stage,
+            vk::DependencyFlags(),
+            0, nullptr,
+            0, nullptr,
+            1, &memory_barrier
+        );
+
+        EndSingletimeCommand(cmd_buffer);
+    }
+
+    void VulkanManager::CopyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height) {
+        vk::CommandBuffer cmd_buffer = BeginSingletimeCommand();
+
+        vk::BufferImageCopy image_copy{};
+        image_copy.setBufferOffset(0);
+        image_copy.setBufferRowLength(0);
+        image_copy.setBufferImageHeight(0);
+        image_copy.setImageSubresource({vk::ImageAspectFlagBits::eColor, 0, 0, 1});
+        image_copy.setImageOffset({0, 0, 0});
+        image_copy.setImageExtent({width, height, 1});
+
+        cmd_buffer.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &image_copy);
+
+        EndSingletimeCommand(cmd_buffer);
+    }
+
+    vk::CommandBuffer VulkanManager::BeginSingletimeCommand() {
+        vk::CommandBufferAllocateInfo alloc_info{};
+        alloc_info.sType = vk::StructureType::eCommandBufferAllocateInfo;
+        alloc_info.setLevel(vk::CommandBufferLevel::ePrimary);
+        alloc_info.setCommandPool(vo_.command_pool);
+        alloc_info.setCommandBufferCount(1);
+
+        vk::CommandBuffer cmd_buffer;
+        if (vo_.logical_device.allocateCommandBuffers(&alloc_info, &cmd_buffer) != vk::Result::eSuccess)
+            throw std::runtime_error("Cannot allocate singletime command buffer.");
+
+        vk::CommandBufferBeginInfo begin_info{};
+        begin_info.sType = vk::StructureType::eCommandBufferBeginInfo;
+        begin_info.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+        cmd_buffer.begin(begin_info);
+
+        return cmd_buffer;
+    }
+
+    void VulkanManager::EndSingletimeCommand(vk::CommandBuffer cmd_buffer) {
         cmd_buffer.end();
 
         vk::SubmitInfo submit{};
@@ -625,7 +819,7 @@ namespace mvk {
         submit.setPCommandBuffers(&cmd_buffer);
 
         if (vo_.graphics_queue.submit(1, &submit, VK_NULL_HANDLE) != vk::Result::eSuccess)
-            throw std::runtime_error("Cannot submit index buffer to graphic queue.");
+            throw std::runtime_error("Cannot submit singletime command to graphic queue.");
 
         vo_.graphics_queue.waitIdle();
 
@@ -650,6 +844,15 @@ namespace mvk {
 
         debug_info.setPfnUserCallback(DebugCallback);
         debug_info.setPUserData(nullptr);
+
+        vk::ValidationFeatureEnableEXT validation_features_enables[] = { vk::ValidationFeatureEnableEXT::eBestPractices };
+
+        vk::ValidationFeaturesEXT validation_features{};
+        validation_features.sType = vk::StructureType::eValidationFeaturesEXT;
+        validation_features.setEnabledValidationFeatureCount(1);
+        validation_features.setPEnabledValidationFeatures(validation_features_enables);
+
+        // debug_info.setPNext((vk::ValidationFeaturesEXT *)&validation_features);
     }
 
     vk::Device& VulkanManager::get_logical_device() {

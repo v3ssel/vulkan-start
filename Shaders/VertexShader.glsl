@@ -8,11 +8,14 @@ layout(binding = 0) uniform MVP {
 
 layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec3 aColor;
+layout(location = 2) in vec2 aTexPos;
 
 layout(location = 0) out vec3 FragColor;
+layout(location = 1) out vec2 FragTexPos;
 
 void main() {
     gl_Position = mvp.Projection * mvp.View * mvp.Model * vec4(aPos, 1.0);
     gl_PointSize = 10.0;
     FragColor = aColor;
+    FragTexPos = aTexPos;
 }
