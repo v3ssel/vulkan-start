@@ -49,8 +49,18 @@ namespace mvk {
             create_info.setEnabledLayerCount(static_cast<uint32_t>(VALIDATION_LAYERS.size()));
             create_info.setPpEnabledLayerNames(VALIDATION_LAYERS.data());
 
+            
+            vk::ValidationFeatureEnableEXT validation_features_enables[] = { vk::ValidationFeatureEnableEXT::eBestPractices };
+
+            vk::ValidationFeaturesEXT validation_features{};
+            validation_features.sType = vk::StructureType::eValidationFeaturesEXT;
+            validation_features.setEnabledValidationFeatureCount(1);
+            validation_features.setPEnabledValidationFeatures(validation_features_enables);
+
             FillDebugInfo(debug_info);
-            create_info.setPNext((vk::DebugUtilsMessengerCreateInfoEXT *)&debug_info);
+            validation_features.setPNext((vk::DebugUtilsMessengerCreateInfoEXT *)&debug_info);
+            
+            create_info.setPNext((vk::ValidationFeaturesEXT *)&validation_features);
         } else {
             create_info.setEnabledLayerCount(0);
             create_info.setPNext(nullptr);
@@ -844,15 +854,6 @@ namespace mvk {
 
         debug_info.setPfnUserCallback(DebugCallback);
         debug_info.setPUserData(nullptr);
-
-        vk::ValidationFeatureEnableEXT validation_features_enables[] = { vk::ValidationFeatureEnableEXT::eBestPractices };
-
-        vk::ValidationFeaturesEXT validation_features{};
-        validation_features.sType = vk::StructureType::eValidationFeaturesEXT;
-        validation_features.setEnabledValidationFeatureCount(1);
-        validation_features.setPEnabledValidationFeatures(validation_features_enables);
-
-        // debug_info.setPNext((vk::ValidationFeaturesEXT *)&validation_features);
     }
 
     vk::Device& VulkanManager::get_logical_device() {
